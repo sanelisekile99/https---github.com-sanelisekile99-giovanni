@@ -1,0 +1,10 @@
+<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" width="200" height="300">
+  <!-- G -->
+  <path d="M 80 80 A 40 40 0 0 0 50 120 L 50 160 A 40 40 0 0 0 90 200 A 40 40 0 0 0 130 160 L 130 140 L 90 140 L 90 120 L 130 120 A 40 40 0 0 0 80 80 Z" fill="none" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- V -->
+  <polyline points="140 80 170 160 200 80" fill="none" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- GIOVANNI Text -->
+  <text x="100" y="260" font-family="serif" font-size="32" font-weight="300" text-anchor="middle" letter-spacing="4">GIOVANNI</text>
+</svg>

@@ -1,0 +1,22 @@
+{
+  "name": "giovanni-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Giovanni e-commerce payment processing",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2"
+  },
+  "keywords": ["yoco", "payments", "ecommerce"],
+  "author": "Giovanni",
+  "license": "ISC"
+}
