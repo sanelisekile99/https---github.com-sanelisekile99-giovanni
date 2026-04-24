@@ -4,6 +4,7 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: "/https---github.com-sanelisekile99-giovanni/",
   server: {
     host: "::",
     port: 5173,
