@@ -20,7 +20,7 @@ const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
  * @param {Object} checkoutData.metadata - Additional metadata
  * @returns {Promise<Object>} Checkout session result with redirectUrl
  */
-export async function createYocoCheckout({ amountInCents, currency, successUrl, cancelUrl, metadata = {} }) {
+export async function createYocoCheckout({ amountInCents, currency, successUrl, cancelUrl, failureUrl, metadata = {} }) {
   console.log('YOCO_SECRET_KEY check:', !!YOCO_SECRET_KEY);
   if (!YOCO_SECRET_KEY) {
     console.error('ERROR: YOCO_SECRET_KEY environment variable is missing or empty');
@@ -37,6 +37,7 @@ export async function createYocoCheckout({ amountInCents, currency, successUrl, 
     currency,
     successUrl,
     cancelUrl,
+  failureUrl,
     hasSecretKey: !!YOCO_SECRET_KEY,
     keyType: YOCO_SECRET_KEY.startsWith('sk_live_') ? 'LIVE' : 'TEST'
   });
@@ -46,6 +47,7 @@ export async function createYocoCheckout({ amountInCents, currency, successUrl, 
     currency,
     successUrl,
     cancelUrl,
+  ...(failureUrl ? { failureUrl } : {}),
     metadata: {
       ...metadata,
       source: 'giovanni-ecommerce',
@@ -68,26 +70,33 @@ export async function createYocoCheckout({ amountInCents, currency, successUrl, 
     console.log('YOCO checkout API response status:', response.status);
     console.log('YOCO checkout API response headers:', Object.fromEntries(response.headers.entries()));
 
+    // Always capture raw response for debugging (Yoco sometimes returns non-JSON error bodies)
+    const rawText = await response.text();
     let data;
     try {
-      data = await response.json();
-    } catch (parseError) {
-      console.error('Failed to parse response as JSON:', parseError);
-      const textResponse = await response.text();
-      console.error('Raw response text:', textResponse);
-      throw new Error(`Invalid JSON response from Yoco API: ${response.status}`);
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      data = null;
     }
 
-    console.log('YOCO checkout API response data:', JSON.stringify(data, null, 2));
+    console.log('YOCO checkout API raw response:', rawText);
+    if (data) {
+      console.log('YOCO checkout API response data:', JSON.stringify(data, null, 2));
+    }
 
     if (!response.ok) {
       console.error('Yoco checkout API error details:', {
         status: response.status,
         statusText: response.statusText,
-        error: data,
+        error: data ?? rawText,
         request: requestBody
       });
-      throw new Error(data.message || data.error || `Checkout creation failed: ${response.status} ${response.statusText}`);
+
+      const message =
+        (data && (data.message || data.error || data.description || data?.errors?.[0]?.message)) ||
+        rawText ||
+        `Checkout creation failed: ${response.status} ${response.statusText}`;
+      throw new Error(message);
     }
 
     const normalizeTimestamp = (createdAt) => {

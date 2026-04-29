@@ -58,28 +58,63 @@ app.get('/health', (req, res) => {
 app.post('/api/payments/checkout', async (req, res) => {
   console.log('Checkout creation endpoint called with body:', req.body);
   try {
-    const { amount, currency, successUrl, cancelUrl, metadata } = req.body;
+  const { amountInCents, amount, currency, successUrl, cancelUrl, failureUrl, metadata } = req.body;
 
-    if (!amount || !currency || !successUrl || !cancelUrl) {
+  const providedAmount = amountInCents ?? amount;
+  if (providedAmount == null || !currency || !successUrl || !cancelUrl) {
       return res.status(400).json({
-        error: 'Missing required fields: amount, currency, successUrl, cancelUrl'
+    error: 'Missing required fields: amount (integer cents), currency, successUrl, cancelUrl'
       });
     }
 
-    console.log('Creating Yoco checkout:', { amount, currency, successUrl, cancelUrl });
+  const amountCents = Number(providedAmount);
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      return res.status(400).json({
+    error: 'Invalid amount, must be a positive integer in cents'
+      });
+    }
+
+    if (currency !== 'ZAR') {
+      return res.status(400).json({
+        error: 'Invalid currency. Only ZAR is supported.'
+      });
+    }
+
+    // Live keys require HTTPS redirect URLs.
+    const isLiveKey = typeof process.env.YOCO_SECRET_KEY === 'string' && process.env.YOCO_SECRET_KEY.startsWith('sk_live_');
+    const urlsToCheck = [successUrl, cancelUrl, failureUrl].filter(Boolean);
+    for (const u of urlsToCheck) {
+      try {
+        const parsed = new URL(u);
+        if (isLiveKey && parsed.protocol !== 'https:') {
+          return res.status(400).json({
+            error: 'Invalid redirect URL protocol for live payments. Use https:// URLs or switch to a Yoco test secret key for localhost testing.',
+            details: { url: u }
+          });
+        }
+      } catch {
+        return res.status(400).json({
+          error: 'Invalid redirect URL. Must be a valid absolute URL.',
+          details: { url: u }
+        });
+      }
+    }
+
+  console.log('Creating Yoco checkout:', { amount: amountCents, currency, successUrl, cancelUrl, failureUrl });
 
     const result = await createYocoCheckout({
-      amountInCents: amount,
+  amountInCents: amountCents,
       currency,
       successUrl,
       cancelUrl,
+      failureUrl,
       metadata
     });
 
     res.json(result);
   } catch (error) {
     console.error('Checkout creation error:', error);
-    res.status(500).json({
+    res.status(502).json({
       error: 'Checkout creation failed',
       message: error instanceof Error ? error.message : 'Unknown error'
     });

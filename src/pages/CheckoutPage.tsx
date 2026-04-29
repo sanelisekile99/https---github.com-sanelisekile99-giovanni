@@ -135,6 +135,12 @@ export default function CheckoutPage() {
       const taxCents = tax;
       const totalAmount = subtotal + shipping + taxCents;
 
+  // Yoco requires integer amounts in cents.
+  const amount = Number.isFinite(totalAmount) ? Math.round(totalAmount) : NaN;
+  if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error('Invalid order total. Please refresh and try again.');
+      }
+
       const localOrder = createLocalOrder({
         customer: {
           name: shippingAddress.name,
@@ -168,15 +174,17 @@ export default function CheckoutPage() {
 
       const successUrl = `${window.location.origin}/order-confirmation?id=${localOrder.order.id}&status=success`;
       const cancelUrl = `${window.location.origin}/checkout?canceled=true`;
+    const failureUrl = `${window.location.origin}/checkout?payment_failed=true`;
 
       const checkoutResp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payments/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: totalAmount,
-          currency: 'ZAR',
+          amount,
+      currency: 'ZAR',
           successUrl,
           cancelUrl,
+      failureUrl,
           metadata: {
             orderId: localOrder.order.id,
             customer: { name: shippingAddress.name, email: shippingAddress.email },
