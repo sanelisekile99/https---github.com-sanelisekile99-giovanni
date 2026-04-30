@@ -38,10 +38,13 @@ app.use(cors({
       // If parsing fails, fall through to env check
     }
 
-    // Fallback to explicit FRONTEND_URL if set
-    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-      return callback(null, true);
-    }
+    const allowedOrigins = new Set([
+      process.env.FRONTEND_URL,
+      'https://giovanni-official.com',
+      'https://www.giovanni-official.com',
+    ].filter(Boolean));
+
+    if (allowedOrigins.has(origin)) return callback(null, true);
 
     return callback(new Error('CORS policy: origin not allowed'));
   },
@@ -80,7 +83,7 @@ app.post('/api/payments/checkout', async (req, res) => {
       });
     }
 
-    // Live keys require HTTPS redirect URLs.
+    // Live keys require HTTPS redirect URLs. Also enforce our production domain for redirects.
     const isLiveKey = typeof process.env.YOCO_SECRET_KEY === 'string' && process.env.YOCO_SECRET_KEY.startsWith('sk_live_');
     const urlsToCheck = [successUrl, cancelUrl, failureUrl].filter(Boolean);
     for (const u of urlsToCheck) {
@@ -91,6 +94,16 @@ app.post('/api/payments/checkout', async (req, res) => {
             error: 'Invalid redirect URL protocol for live payments. Use https:// URLs or switch to a Yoco test secret key for localhost testing.',
             details: { url: u }
           });
+        }
+
+        if (isLiveKey) {
+          const allowedHosts = new Set(['giovanni-official.com', 'www.giovanni-official.com']);
+          if (!allowedHosts.has(parsed.hostname)) {
+            return res.status(400).json({
+              error: 'Invalid redirect URL host for live payments. Redirects must point to your production domain.',
+              details: { url: u }
+            });
+          }
         }
       } catch {
         return res.status(400).json({
@@ -260,5 +273,5 @@ app.post('/api/webhooks/yoco', express.raw({ type: 'application/json' }), (req, 
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 Health check: /health`);
 });

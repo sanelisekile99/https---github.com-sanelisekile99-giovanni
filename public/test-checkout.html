@@ -21,14 +21,16 @@
             resultEl.innerHTML = '⏳ Testing...';
             
             try {
-                const response = await fetch('http://localhost:3001/api/payments/checkout', {
+            const backendBase = (window.__BACKEND_URL__ || '').trim() || 'http://localhost:3001';
+            const response = await fetch(`${backendBase}/api/payments/checkout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         amount: 68885,
-                        currency: 'ZAR',
-                        successUrl: 'http://localhost:5173/order-confirmation?status=success',
-                        cancelUrl: 'http://localhost:5173/checkout?canceled=true'
+                currency: 'ZAR',
+                successUrl: `${window.location.origin}/order-confirmation?status=success`,
+                cancelUrl: `${window.location.origin}/checkout?canceled=true`,
+                failureUrl: `${window.location.origin}/checkout?payment_failed=true`
                     })
                 });
 
