@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { getCollectionByHandle, getCollectionProducts } from '@/lib/localStore.generated';
 import type { LocalCollection, LocalProduct } from '@/lib/localStore.generated';
-import { imageCatalog, resolveImageSrc } from '@/lib/imageCatalog';
+
 
 export default function CollectionPage() {
   const { handle } = useParams<{ handle: string }>();
@@ -78,32 +78,9 @@ export default function CollectionPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
-            {products.map((product, index) => {
-              const handleLower = collection?.handle?.toLowerCase() || '';
-              const isBucketCollection = handleLower.includes('bucket');
-              const isClassicCollection = handleLower.includes('classic');
-
-              // Prefer collection-specific catalog images, with explicit local-file fallbacks
-              const bucketOverride = isBucketCollection
-                // Prefer a catalog bucket-hat image explicitly (stronger match),
-                // fall back to the sage-green variant and lastly to a known
-                // filename. This makes bucket collections show bucket images
-                // consistently.
-                ? imageCatalog.bucketHat || imageCatalog.sageGreenBucketHat || resolveImageSrc('images/Blue Denim bucket hat.png') || resolveImageSrc('images/giovanni bucket hat.png')
-                : undefined;
-
-              const classicOverride = isClassicCollection
-                ? imageCatalog.classicGiovanniTShirt || resolveImageSrc('images/classic giovanni t-shirts in black.png')
-                : undefined;
-
-              const limitedOverride = handleLower.includes('limited')
-                ? imageCatalog.premiumLinenShirt || resolveImageSrc('images/premium linen shirt with sleek zipper.png')
-                : undefined;
-
-              const imageOverride = bucketOverride || classicOverride || limitedOverride;
-
-              return <ProductCard key={product.id} product={product} imageOverride={imageOverride} />;
-            })}
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
           </div>
         )}
       </div>

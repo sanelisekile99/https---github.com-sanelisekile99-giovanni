@@ -83,9 +83,9 @@ export default function ProductCard({ product, className = '', imageOverride }: 
       tagsStr.includes('buckethat') ||
       tagsStr.includes('bucket hats')
     ) {
-  // Prefer explicit bucket hat catalog image; only fallback to t-shirt
-  // as a last resort for missing assets.
-  return imageCatalog.bucketHat || imageCatalog.blackTShirt;
+  // If we don't have a specific asset for this product, use a generic
+  // bucket-hat image.
+  return imageCatalog.bucketHat;
     }
 
     if (type.includes('sweater') || handle.includes('sweater') || name.includes('sweater')) {
@@ -140,7 +140,10 @@ export default function ProductCard({ product, className = '', imageOverride }: 
   // Prefer explicit key-based image mapping
   const keyImage = getImageByKey(product.imageKey);
   const dbImage = keyImage || resolveImageSrc(product.images?.[0] || product.image || product.image_url);
-  const productImage = resolveImageSrc(imageOverride) || dbImage || getLocalImage();
+  // IMPORTANT: Always prioritize the product's own image over collection-level
+  // overrides. Otherwise the deployed site can show the same image for many
+  // items (e.g. bucket hat collection forcing one bucket image for all hats).
+  const productImage = dbImage || resolveImageSrc(imageOverride) || getLocalImage();
   if (!productImage && process.env.NODE_ENV === 'development') {
     console.warn('[ProductCard] missing product image for', product.handle, { imageKey: product.imageKey, images: product.images });
   }
