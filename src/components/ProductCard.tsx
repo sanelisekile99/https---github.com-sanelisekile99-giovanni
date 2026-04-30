@@ -41,6 +41,25 @@ export default function ProductCard({ product, className = '', imageOverride }: 
   const tagsStr = (product.tags || []).map(t => String(t).toLowerCase()).join(' ');
     const key = `${handle}-${name}`;
 
+    // IMPORTANT: bucket-hat items often contain colour words like "black" in
+    // the filename/name (e.g. "Black bucket hat logo"). If we check colours
+    // first, hats get misclassified as t-shirts and show the wrong image.
+    if (
+      type.includes('bucket hat') ||
+      handle.includes('bucket-hat') ||
+      handle.includes('buckethat') ||
+      name.includes('bucket hat') ||
+      // also check tags — collection pages often include products by tag
+      (tagsStr.includes('bucket') && tagsStr.includes('hat')) ||
+      tagsStr.includes('bucket-hat') ||
+      tagsStr.includes('buckethat') ||
+      tagsStr.includes('bucket hats')
+    ) {
+      // If we don't have a specific asset for this product, use a generic
+      // bucket-hat image.
+      return imageCatalog.bucketHat;
+    }
+
     if (name.includes('lettering') || (name.includes('brown') && name.includes('shirt'))) {
       return imageCatalog.chocolateTShirt;
     }
@@ -70,22 +89,6 @@ export default function ProductCard({ product, className = '', imageOverride }: 
       ];
       const hash = key.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
       return tShirtImages[hash % tShirtImages.length];
-    }
-
-    if (
-      type.includes('bucket hat') ||
-      handle.includes('bucket-hat') ||
-      handle.includes('buckethat') ||
-      name.includes('bucket hat') ||
-      // also check tags — collection pages often include products by tag
-      tagsStr.includes('bucket') && tagsStr.includes('hat') ||
-      tagsStr.includes('bucket-hat') ||
-      tagsStr.includes('buckethat') ||
-      tagsStr.includes('bucket hats')
-    ) {
-  // If we don't have a specific asset for this product, use a generic
-  // bucket-hat image.
-  return imageCatalog.bucketHat;
     }
 
     if (type.includes('sweater') || handle.includes('sweater') || name.includes('sweater')) {
