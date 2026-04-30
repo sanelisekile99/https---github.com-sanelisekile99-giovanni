@@ -126,8 +126,39 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!validateShipping()) return;
 
+    // Safari can block popups/navigation that aren't directly tied to a user
+    // gesture. We open a blank window synchronously on click, then later
+    // navigate it to Yoco's hosted checkout URL once we receive it.
+    // If popups are blocked, we'll fall back to same-tab navigation.
+    let yocoWindow: Window | null = null;
+    try {
+      yocoWindow = window.open('', '_blank', 'noopener,noreferrer');
+      if (yocoWindow) {
+        yocoWindow.document.title = 'Redirecting to payment…';
+        yocoWindow.document.body.innerHTML = '<p style="font-family: system-ui; padding: 16px;">Redirecting to secure payment…</p>';
+      }
+    } catch (e) {
+      console.warn('[Checkout] Unable to open payment window (Safari popup blocker likely). Will fall back to same-tab redirect.', e);
+      yocoWindow = null;
+    }
+
     setProcessing(true);
     setPaymentError('');
+
+    // Helpful client-side diagnostics for Safari (and mixed-content issues)
+    try {
+      const backendUrl = String(import.meta.env.VITE_BACKEND_URL || '');
+      if (window.location.protocol === 'https:' && backendUrl.startsWith('http://')) {
+        console.warn('[Checkout] Mixed-content risk: site is https but VITE_BACKEND_URL is http:', backendUrl);
+      }
+      console.log('[Checkout] Initiating hosted checkout', {
+        browser: navigator.userAgent,
+        origin: window.location.origin,
+        backend: backendUrl,
+      });
+    } catch {
+      // ignore
+    }
 
     try {
       const subtotal = cartTotal;
@@ -217,10 +248,23 @@ export default function CheckoutPage() {
         });
       }
 
-      window.location.href = checkoutResult.redirectUrl;
+      // Prefer navigating the user-gesture-opened window (Safari-safe).
+      // If popups were blocked, fall back to same-tab navigation.
+      if (yocoWindow && !yocoWindow.closed) {
+        yocoWindow.location.href = checkoutResult.redirectUrl;
+      } else {
+        window.location.assign(checkoutResult.redirectUrl);
+      }
 
     } catch (error) {
       console.error('Checkout error:', error);
+      // If we opened a blank payment window, close it on error to avoid
+      // leaving the user with a dead tab.
+      try {
+        if (yocoWindow && !yocoWindow.closed) yocoWindow.close();
+      } catch {
+        // ignore
+      }
       setPaymentError(error instanceof Error ? error.message : 'Payment failed');
       setProcessing(false);
     }
