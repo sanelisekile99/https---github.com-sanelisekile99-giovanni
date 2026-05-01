@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-const YOCO_BASE_URL = 'https://payments.yoco.com/api';
+const YOCO_BASE_URL = 'https://giovanni-official.com';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
 /**
