@@ -115,7 +115,11 @@ async function createYocoCheckout({ amountInCents, currency, successUrl, cancelU
 }
 
 export default async function handler(req, res) {
-  console.log('Request method:', req.method, 'Origin:', req.headers.origin);
+  console.log('=== CHECKOUT REQUEST ===');
+  console.log('Request method:', req.method);
+  console.log('Request origin:', req.headers.origin);
+  console.log('YOCO_SECRET_KEY exists:', !!process.env.YOCO_SECRET_KEY);
+  console.log('YOCO_SECRET_KEY value (first 10 chars):', process.env.YOCO_SECRET_KEY?.substring(0, 10));
 
   // CORS headers for production domains
   const allowedOrigins = ['https://giovanni-official.com', 'https://www.giovanni-official.com'];
@@ -134,7 +138,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log('Checkout creation endpoint called with body:', req.body);
+  console.log('Checkout creation endpoint called with body:', JSON.stringify(req.body));
   try {
     const { amountInCents, amount, currency, successUrl, cancelUrl, failureUrl, metadata } = req.body;
 
@@ -201,10 +205,24 @@ export default async function handler(req, res) {
 
     res.json(result);
   } catch (error) {
-    console.error('Checkout creation error:', error);
+    console.error('=== CHECKOUT ERROR ===');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // If YOCO_SECRET_KEY is missing, provide clear guidance
+    if (errorMessage.includes('YOCO_SECRET_KEY')) {
+      return res.status(500).json({
+        error: 'Checkout creation failed',
+        message: 'Server configuration error: YOCO_SECRET_KEY is not set in Vercel environment variables',
+        details: 'Add YOCO_SECRET_KEY to your Vercel project settings and redeploy'
+      });
+    }
+    
     res.status(502).json({
       error: 'Checkout creation failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: errorMessage
     });
   }
 }
