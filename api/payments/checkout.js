@@ -117,8 +117,12 @@ async function createYocoCheckout({ amountInCents, currency, successUrl, cancelU
 }
 
 export default async function handler(req, res) {
-  // CORS headers for production domain
-  res.setHeader('Access-Control-Allow-Origin', 'https://giovanni-official.com');
+  // CORS headers for production domains
+  const allowedOrigins = ['https://giovanni-official.com', 'https://www.giovanni-official.com'];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
