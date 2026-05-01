@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 const YOCO_BASE_URL = 'https://payments.yoco.com/api';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
@@ -117,6 +115,8 @@ async function createYocoCheckout({ amountInCents, currency, successUrl, cancelU
 }
 
 export default async function handler(req, res) {
+  console.log('Request method:', req.method, 'Origin:', req.headers.origin);
+
   // CORS headers for production domains
   const allowedOrigins = ['https://giovanni-official.com', 'https://www.giovanni-official.com'];
   const origin = req.headers.origin;
