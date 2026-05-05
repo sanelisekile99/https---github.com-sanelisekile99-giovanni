@@ -121,8 +121,13 @@ export default async function handler(req, res) {
   console.log('YOCO_SECRET_KEY exists:', !!process.env.YOCO_SECRET_KEY);
   console.log('YOCO_SECRET_KEY value (first 10 chars):', process.env.YOCO_SECRET_KEY?.substring(0, 10));
 
-  // CORS headers for production domains
-  const allowedOrigins = ['https://giovanni-official.com', 'https://www.giovanni-official.com'];
+  // CORS headers for production domains and localhost development
+  const allowedOrigins = [
+    'https://giovanni-official.com', 
+    'https://www.giovanni-official.com',
+    'http://localhost:3000',  // Vercel dev default port
+    'http://127.0.0.1:3000'
+  ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);

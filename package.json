@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:vercel": "vercel dev",
     "build": "vite build",
     "lint:images": "node scripts/validate-images.cjs",
     "build:dev": "vite build --mode development",
