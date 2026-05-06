@@ -207,7 +207,12 @@ export default function CheckoutPage() {
       const cancelUrl = `${window.location.origin}/checkout?canceled=true`;
     const failureUrl = `${window.location.origin}/checkout?payment_failed=true`;
 
-      const checkoutResp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payments/checkout`, {
+      const backendUrlRaw = String(import.meta.env.VITE_BACKEND_URL || '').trim();
+      const backendUrl = backendUrlRaw.replace(/\/$/, '');
+      const apiEndpoint = backendUrl ? `${backendUrl}/api/payments/checkout` : '/api/payments/checkout';
+      console.log('[Checkout] Fetching checkout API at:', apiEndpoint);
+
+      const checkoutResp = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

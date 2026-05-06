@@ -118,29 +118,65 @@ export default async function handler(req, res) {
   console.log('=== CHECKOUT REQUEST ===');
   console.log('Request method:', req.method);
   console.log('Request origin:', req.headers.origin);
+  console.log('Request headers:', req.headers);
   console.log('YOCO_SECRET_KEY exists:', !!process.env.YOCO_SECRET_KEY);
   console.log('YOCO_SECRET_KEY value (first 10 chars):', process.env.YOCO_SECRET_KEY?.substring(0, 10));
 
-  // CORS headers for production domains and localhost development
+  // CORS handling: allow configured frontend origin(s), Vercel preview domains,
+  // or localhost during development. Log and return informative messages when
+  // an origin is not allowed so we can diagnose CORS failures from the browser.
   const allowedOrigins = [
-    'https://giovanni-official.com', 
+    'https://giovanni-official.com',
     'https://www.giovanni-official.com',
-    'http://localhost:3000',  // Vercel dev default port
-    'http://127.0.0.1:3000'
+    'https://exclusive-minimal-refined-1.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
   ];
+
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  const configuredFrontend = process.env.FRONTEND_URL || process.env.VERCEL_URL || '';
+
+  console.log('Checking CORS for origin:', origin);
+  console.log('allowedOrigins:', allowedOrigins);
+  console.log('has origin:', allowedOrigins.includes(origin));
+  console.log('configuredFrontend:', configuredFrontend);
+  console.log('origin === configuredFrontend:', origin === configuredFrontend);
+
+  // Allow if origin is explicitly configured, in our allowed list, or a Vercel preview domain
+  let allowOrigin = '';
+  if (!origin) {
+    // No origin (server-to-server call or curl) — allow
+    allowOrigin = '*';
+  } else if (allowedOrigins.includes(origin)) {
+    allowOrigin = origin;
+  } else if (configuredFrontend && origin === configuredFrontend) {
+    allowOrigin = origin;
+  } else if (/\.vercel\.app$/.test(origin)) {
+    // Allow Vercel preview deployments (helps during review/deploy)
+    allowOrigin = origin;
   }
+
+  console.log('allowOrigin:', allowOrigin);
+
+  if (allowOrigin) {
+    console.log('CORS: allowing origin', origin, '->', allowOrigin);
+    res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    console.warn('CORS: rejecting origin', origin, '- not in allowed list or configured frontend');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    console.log('Rejecting unsupported method:', req.method);
+    return res.status(405).json({ error: 'Method not allowed', allowedMethods: 'POST, OPTIONS' });
   }
 
   console.log('Checkout creation endpoint called with body:', JSON.stringify(req.body));
