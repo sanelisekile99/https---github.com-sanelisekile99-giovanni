@@ -27,7 +27,6 @@ import { useCart } from '@/contexts/CartContext';
 import { useClientAccount } from '@/contexts/ClientAccountContext';
 import { ChevronLeft, Lock, Check, Loader2 } from 'lucide-react';
 import { createLocalOrder, getProductByHandle, getProducts, updateLocalOrder } from '@/lib/localStore';
-import YocoButton from '@lekkercommerce/yoco-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
@@ -80,7 +79,7 @@ export default function CheckoutPage() {
   // Yoco payment state
   const [yocoLoading, setYocoLoading] = useState(false);
   const [yocoError, setYocoError] = useState('');
-  const yocoRef = useRef<HTMLButtonElement>(null);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
 
   // ── Derived values (computed early for use in effects) ─────────
   const subtotal = cartTotal;
@@ -138,7 +137,6 @@ export default function CheckoutPage() {
 
     setProcessing(true);
     setPaymentError('');
-    setYocoError('');
 
     try {
       const subtotal = cartTotal;
@@ -184,22 +182,46 @@ export default function CheckoutPage() {
         shippingAddress,
       });
 
-      console.log('[Checkout] Triggering Yoco payment');
-
-      // Trigger the Yoco button click to open payment modal
-      if (yocoRef.current) {
-        setYocoLoading(true);
-        yocoRef.current.click();
-        
-        // Store order ID for use in Yoco callback
-        (window as Window & { __giovanniOrderId?: string }).__giovanniOrderId = localOrder.order.id;
-      }
+      console.log('[Checkout] Order created:', localOrder.order.id);
+      setCurrentOrderId(localOrder.order.id);
+      setYocoLoading(true);
 
     } catch (error) {
-      console.error('[Checkout] Payment error:', error);
+      console.error('[Checkout] Order creation error:', error);
       setPaymentError(error instanceof Error ? error.message : 'Payment failed');
       setProcessing(false);
     }
+  };
+
+  const handleYocoSuccess = async (result: unknown) => {
+    console.log('[Checkout] Yoco payment successful:', result);
+    
+    if (!currentOrderId) {
+      setPaymentError('Order ID lost during payment');
+      return;
+    }
+
+    try {
+      // Update order with payment status
+      updateLocalOrder(currentOrderId, {
+        paymentStatus: 'paid',
+        status: 'awaiting_payment',
+      });
+
+      // Redirect to success page
+      window.location.href = `/order-confirmation?id=${currentOrderId}&status=success`;
+    } catch (error) {
+      console.error('[Checkout] Failed to update order:', error);
+      setPaymentError('Payment succeeded but failed to update order');
+      setProcessing(false);
+    }
+  };
+
+  const handleYocoError = (error: unknown) => {
+    console.error('[Checkout] Yoco payment error:', error);
+    setPaymentError(error instanceof Error ? error.message : 'Payment failed');
+    setYocoLoading(false);
+    setProcessing(false);
   };
 
   const inputClass = (field: string) =>
@@ -539,33 +561,62 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <p className="text-sm text-[#5A5A5A] font-light leading-relaxed">
-                        Complete your payment securely. Your card details are processed through our secure payment gateway.
+                        Enter your card details below to complete your purchase securely.
                       </p>
 
-                      {/* Yoco Payment Button */}
+                      {/* Card Details Form */}
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-[11px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A] mb-2">
-                            Secure Payment
+                          <label className="block text-[11px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A] mb-3">
+                            Card Details
                           </label>
-                          <div className="border border-[#E8E5E1] rounded-sm bg-white p-4">
-                            <button
-                              ref={yocoRef}
-                              onClick={handlePlaceOrder}
-                              disabled={processing}
-                              className="w-full py-4 bg-[#1A1A1A] text-white text-[11px] tracking-[0.25em] uppercase font-medium hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                              {processing ? (
-                                <>
-                                  <Loader2 size={14} className="animate-spin" />
-                                  Processing Payment…
-                                </>
-                              ) : (
-                                `Pay ${formatPrice(total)}`
-                              )}
-                            </button>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Full Name"
+                                className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white"
+                              />
+                            </div>
+                            
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Card Number"
+                                maxLength={19}
+                                className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white"
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="MM"
+                                  maxLength={2}
+                                  className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
+                                />
+                              </div>
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="YY"
+                                  maxLength={2}
+                                  className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
+                                />
+                              </div>
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="CVV"
+                                  maxLength={4}
+                                  className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
