@@ -1,6 +1,64 @@
 const YOCO_BASE_URL = 'https://payments.yoco.com/api';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
+async function createYocoToken({ cardNumber, expiryMonth, expiryYear, cvv, cardholderName }) {
+  console.log('Creating Yoco token...');
+  
+  if (!YOCO_SECRET_KEY) {
+    throw new Error('YOCO_SECRET_KEY environment variable is required');
+  }
+
+  const requestBody = {
+    number: cardNumber,
+    expiry_month: parseInt(expiryMonth),
+    expiry_year: parseInt(expiryYear),
+    cvc: cvv,
+    name_on_card: cardholderName,
+  };
+
+  console.log('Token request (masked):', {
+    number: `****${cardNumber.slice(-4)}`,
+    expiry_month: expiryMonth,
+    expiry_year: expiryYear,
+    cvc: '***',
+    name_on_card: cardholderName,
+  });
+
+  try {
+    const response = await fetch(`${YOCO_BASE_URL}/tokenize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${YOCO_SECRET_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const rawText = await response.text();
+    let data;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      data = null;
+    }
+
+    console.log('Yoco tokenize response status:', response.status);
+
+    if (!response.ok) {
+      console.error('Yoco tokenize error:', { status: response.status, error: data ?? rawText });
+      const message = (data && (data.message || data.error)) || rawText || 'Tokenization failed';
+      throw new Error(message);
+    }
+
+    console.log('Token created successfully:', data.id);
+    return data.id;
+
+  } catch (error) {
+    console.error('Yoco token creation error:', error);
+    throw error;
+  }
+}
+
 async function createYocoCharge({ token, amountInCents, currency, metadata = {} }) {
   console.log('YOCO_SECRET_KEY check:', !!YOCO_SECRET_KEY);
   if (!YOCO_SECRET_KEY) {
@@ -151,12 +209,24 @@ export default async function handler(req, res) {
 
   console.log('Charge creation endpoint called with body:', JSON.stringify(req.body));
   try {
-    const { token, amountInCents, amount, currency, metadata } = req.body;
+    const { 
+      token, 
+      amountInCents, 
+      amount, 
+      currency, 
+      metadata,
+      // Card details for tokenization
+      cardNumber,
+      expiryMonth,
+      expiryYear,
+      cvv,
+      cardholderName,
+    } = req.body;
 
     const providedAmount = amountInCents ?? amount;
-    if (!token || providedAmount == null || !currency) {
+    if (providedAmount == null || !currency) {
       return res.status(400).json({
-        error: 'Missing required fields: token, amountInCents (integer cents), currency'
+        error: 'Missing required fields: amount (or amountInCents), currency'
       });
     }
 
@@ -173,10 +243,37 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('Creating Yoco charge:', { amount: amountCents, currency, hasToken: !!token });
+    // Determine if we're using a token or need to create one from card details
+    let chargeToken = token;
+    
+    if (!chargeToken && (cardNumber && expiryMonth && expiryYear && cvv && cardholderName)) {
+      // Tokenize the card details
+      console.log('Card details provided, creating token...');
+      try {
+        chargeToken = await createYocoToken({
+          cardNumber,
+          expiryMonth,
+          expiryYear,
+          cvv,
+          cardholderName,
+        });
+      } catch (tokenError) {
+        console.error('Tokenization failed:', tokenError);
+        return res.status(400).json({
+          error: 'Card validation failed',
+          message: tokenError instanceof Error ? tokenError.message : 'Invalid card details'
+        });
+      }
+    } else if (!chargeToken) {
+      return res.status(400).json({
+        error: 'Missing required fields: either token or full card details (cardNumber, expiryMonth, expiryYear, cvv, cardholderName)'
+      });
+    }
+
+    console.log('Creating Yoco charge:', { amount: amountCents, currency, hasToken: !!chargeToken });
 
     const result = await createYocoCharge({
-      token,
+      token: chargeToken,
       amountInCents: amountCents,
       currency,
       metadata

@@ -75,6 +75,13 @@ export default function CheckoutPage() {
 
   // Payment form state
   const [paymentError, setPaymentError] = useState('');
+  
+  // Card form fields
+  const [cardholderName, setCardholderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryMonth, setExpiryMonth] = useState('');
+  const [expiryYear, setExpiryYear] = useState('');
+  const [cvv, setCvv] = useState('');
 
   // Yoco payment state
   const [yocoLoading, setYocoLoading] = useState(false);
@@ -135,6 +142,24 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!validateShipping()) return;
 
+    // Validate card inputs
+    if (!cardholderName.trim()) {
+      setPaymentError('Please enter cardholder name');
+      return;
+    }
+    if (!cardNumber.trim() || cardNumber.replace(/\s/g, '').length < 13) {
+      setPaymentError('Please enter a valid card number');
+      return;
+    }
+    if (!expiryMonth || !expiryYear) {
+      setPaymentError('Please enter card expiry date');
+      return;
+    }
+    if (!cvv || cvv.length < 3) {
+      setPaymentError('Please enter a valid CVV');
+      return;
+    }
+
     setProcessing(true);
     setPaymentError('');
 
@@ -186,9 +211,49 @@ export default function CheckoutPage() {
       setCurrentOrderId(localOrder.order.id);
       setYocoLoading(true);
 
+      // Process payment via backend API
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://exclusive-minimal-refined-1.vercel.app';
+      const chargeResponse = await fetch(`${backendUrl}/api/payments/charge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amount,
+          currency: 'ZAR',
+          cardholderName,
+          cardNumber: cardNumber.replace(/\s/g, ''),
+          expiryMonth,
+          expiryYear,
+          cvv,
+          metadata: {
+            orderId: localOrder.order.id,
+            customerEmail: shippingAddress.email,
+          },
+        }),
+      });
+
+      const chargeData = await chargeResponse.json();
+
+      if (!chargeResponse.ok) {
+        throw new Error(chargeData.message || 'Payment processing failed');
+      }
+
+      console.log('[Checkout] Payment successful:', chargeData);
+
+      // Update order with payment info
+      updateLocalOrder(localOrder.order.id, {
+        paymentStatus: 'paid',
+      });
+
+      // Redirect to success page
+      setYocoLoading(false);
+      window.location.href = `/order-confirmation?id=${localOrder.order.id}&status=success`;
+
     } catch (error) {
-      console.error('[Checkout] Order creation error:', error);
+      console.error('[Checkout] Payment error:', error);
       setPaymentError(error instanceof Error ? error.message : 'Payment failed');
+      setYocoLoading(false);
       setProcessing(false);
     }
   };
@@ -578,6 +643,8 @@ export default function CheckoutPage() {
                               <input
                                 type="text"
                                 placeholder="Full Name"
+                                value={cardholderName}
+                                onChange={(e) => setCardholderName(e.target.value)}
                                 className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white"
                               />
                             </div>
@@ -586,6 +653,8 @@ export default function CheckoutPage() {
                               <input
                                 type="text"
                                 placeholder="Card Number"
+                                value={cardNumber}
+                                onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 19))}
                                 maxLength={19}
                                 className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white"
                               />
@@ -596,6 +665,8 @@ export default function CheckoutPage() {
                                 <input
                                   type="text"
                                   placeholder="MM"
+                                  value={expiryMonth}
+                                  onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
                                   maxLength={2}
                                   className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
                                 />
@@ -604,6 +675,8 @@ export default function CheckoutPage() {
                                 <input
                                   type="text"
                                   placeholder="YY"
+                                  value={expiryYear}
+                                  onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 2))}
                                   maxLength={2}
                                   className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
                                 />
@@ -612,6 +685,8 @@ export default function CheckoutPage() {
                                 <input
                                   type="text"
                                   placeholder="CVV"
+                                  value={cvv}
+                                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                   maxLength={4}
                                   className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
                                 />
