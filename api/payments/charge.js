@@ -1,65 +1,7 @@
 const YOCO_BASE_URL = 'https://payments.yoco.com/api';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
-async function createYocoToken({ cardNumber, expiryMonth, expiryYear, cvv, cardholderName }) {
-  console.log('Creating Yoco token...');
-  
-  if (!YOCO_SECRET_KEY) {
-    throw new Error('YOCO_SECRET_KEY environment variable is required');
-  }
-
-  const requestBody = {
-    number: cardNumber,
-    expiry_month: parseInt(expiryMonth),
-    expiry_year: parseInt(expiryYear),
-    cvc: cvv,
-    name_on_card: cardholderName,
-  };
-
-  console.log('Token request (masked):', {
-    number: `****${cardNumber.slice(-4)}`,
-    expiry_month: expiryMonth,
-    expiry_year: expiryYear,
-    cvc: '***',
-    name_on_card: cardholderName,
-  });
-
-  try {
-    const response = await fetch(`${YOCO_BASE_URL}/tokenize`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${YOCO_SECRET_KEY}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    const rawText = await response.text();
-    let data;
-    try {
-      data = rawText ? JSON.parse(rawText) : null;
-    } catch {
-      data = null;
-    }
-
-    console.log('Yoco tokenize response status:', response.status);
-
-    if (!response.ok) {
-      console.error('Yoco tokenize error:', { status: response.status, error: data ?? rawText });
-      const message = (data && (data.message || data.error)) || rawText || 'Tokenization failed';
-      throw new Error(message);
-    }
-
-    console.log('Token created successfully:', data.id);
-    return data.id;
-
-  } catch (error) {
-    console.error('Yoco token creation error:', error);
-    throw error;
-  }
-}
-
-async function createYocoCharge({ token, amountInCents, currency, metadata = {} }) {
+async function createYocoCharge({ token, amountInCents, currency, cardNumber, expiryMonth, expiryYear, cvv, cardholderName, metadata = {} }) {
   console.log('YOCO_SECRET_KEY check:', !!YOCO_SECRET_KEY);
   if (!YOCO_SECRET_KEY) {
     console.error('ERROR: YOCO_SECRET_KEY environment variable is missing or empty');
@@ -75,14 +17,15 @@ async function createYocoCharge({ token, amountInCents, currency, metadata = {} 
     amount: amountInCents,
     currency,
     hasToken: !!token,
+    hasCardDetails: !!(cardNumber && expiryMonth && expiryYear && cvv),
     hasSecretKey: !!YOCO_SECRET_KEY,
     keyType: YOCO_SECRET_KEY.startsWith('sk_live_') ? 'LIVE' : 'TEST'
   });
 
+  // Build request body based on what we have
   const requestBody = {
     amount: amountInCents,
     currency,
-    token,
     metadata: {
       ...metadata,
       source: 'giovanni-ecommerce',
@@ -90,10 +33,33 @@ async function createYocoCharge({ token, amountInCents, currency, metadata = {} 
     },
   };
 
-  console.log('Charge request body:', JSON.stringify(requestBody, null, 2));
+  // Add token or card details
+  if (token) {
+    requestBody.token = token;
+  } else if (cardNumber && expiryMonth && expiryYear && cvv) {
+    // Send card details directly - Yoco may need these fields
+    requestBody.card = {
+      number: cardNumber,
+      expiry_month: parseInt(expiryMonth),
+      expiry_year: 2000 + parseInt(expiryYear),
+      cvc: cvv,
+    };
+    if (cardholderName) {
+      requestBody.card.name_on_card = cardholderName;
+      requestBody.metadata.cardholderName = cardholderName;
+    }
+  }
+
+  console.log('Charge request body (masked):', {
+    amount: amountInCents,
+    currency,
+    ...(token && { token }),
+    ...(cardNumber && { card: { number: `****${cardNumber.slice(-4)}`, expiry_month: expiryMonth, expiry_year: expiryYear, cvc: '***' } }),
+    metadata: requestBody.metadata,
+  });
 
   try {
-    const response = await fetch(`${YOCO_BASE_URL}/charges/`, {
+    const response = await fetch(`${YOCO_BASE_URL}/charges`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -243,34 +209,33 @@ export default async function handler(req, res) {
       });
     }
 
-    // Determine if we're using a token or need to create one from card details
+    // Determine if we're using a token or need to use card details
     let chargeToken = token;
     
     if (!chargeToken && (cardNumber && expiryMonth && expiryYear && cvv && cardholderName)) {
-      // Tokenize the card details
-      console.log('Card details provided, creating token...');
-      try {
-        chargeToken = await createYocoToken({
-          cardNumber,
-          expiryMonth,
-          expiryYear,
-          cvv,
-          cardholderName,
-        });
-      } catch (tokenError) {
-        console.error('Tokenization failed:', tokenError);
-        return res.status(400).json({
-          error: 'Card validation failed',
-          message: tokenError instanceof Error ? tokenError.message : 'Invalid card details'
-        });
-      }
+      // We have card details - send directly to Yoco
+      console.log('Card details provided, creating charge with card data...');
+      
+      const result = await createYocoCharge({
+        amountInCents: amountCents,
+        currency,
+        cardNumber,
+        expiryMonth,
+        expiryYear,
+        cvv,
+        cardholderName,
+        metadata
+      });
+
+      return res.json(result);
     } else if (!chargeToken) {
       return res.status(400).json({
         error: 'Missing required fields: either token or full card details (cardNumber, expiryMonth, expiryYear, cvv, cardholderName)'
       });
     }
 
-    console.log('Creating Yoco charge:', { amount: amountCents, currency, hasToken: !!chargeToken });
+    // If we have a token, use it directly
+    console.log('Creating Yoco charge with token:', { amount: amountCents, currency, hasToken: !!chargeToken });
 
     const result = await createYocoCharge({
       token: chargeToken,
