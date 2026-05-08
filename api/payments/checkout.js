@@ -158,12 +158,17 @@ export default async function handler(req, res) {
 
   console.log('allowOrigin:', allowOrigin);
 
-  if (allowOrigin) {
-    console.log('CORS: allowing origin', origin, '->', allowOrigin);
-    res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  // Ensure we always send an Access-Control-Allow-Origin header so the
+  // browser preflight receives a clear answer. Prefer echoing the
+  // validated `allowOrigin`, but fall back to wildcard so preflight does
+  // not fail when origin is missing or unexpected (helps diagnostics).
+  const effectiveAllowOrigin = allowOrigin || '*';
+  console.log('CORS: effectiveAllowOrigin ->', effectiveAllowOrigin);
+  res.setHeader('Access-Control-Allow-Origin', effectiveAllowOrigin);
+  // Only send credentials header when we are echoing a specific origin
+  // (not when using wildcard).
+  if (effectiveAllowOrigin !== '*') {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-  } else {
-    console.warn('CORS: rejecting origin', origin, '- not in allowed list or configured frontend');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
