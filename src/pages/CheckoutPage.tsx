@@ -27,6 +27,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useClientAccount } from '@/contexts/ClientAccountContext';
 import { ChevronLeft, Lock, Check, Loader2 } from 'lucide-react';
 import { createLocalOrder, getProductByHandle, getProducts, updateLocalOrder } from '@/lib/localStore';
+import YocoButton from '@lekkercommerce/yoco-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
@@ -76,84 +77,14 @@ export default function CheckoutPage() {
   // Payment form state
   const [paymentError, setPaymentError] = useState('');
 
+  // Yoco payment state
+  const [yocoLoading, setYocoLoading] = useState(false);
+  const [yocoError, setYocoError] = useState('');
+  const yocoRef = useRef<HTMLButtonElement>(null);
+
   // ── Derived values (computed early for use in effects) ─────────
   const subtotal = cartTotal;
   const total = subtotal + shippingCost + tax;
-
-  // Yoco SDK state
-  const yocoContainerRef = useRef<HTMLDivElement>(null);
-  const [yocoInline, setYocoInline] = useState<YocoInlineInstance | null>(null);
-
-  // Load Yoco SDK and initialize inline checkout
-  useEffect(() => {
-    if (step !== 'review' || yocoInline) return;
-
-    const loadYocoSDK = async () => {
-      // Load Yoco SDK - try multiple URLs
-      if (!window.YocoSDK) {
-        const script = document.createElement('script');
-        // Try the correct URL for Yoco SDK
-        script.src = 'https://js.yoco.com/sdk/releases/v10/yoco-sdk-web.js';
-        script.async = true;
-        
-        script.onload = () => {
-          console.log('[Checkout] Yoco SDK loaded successfully');
-          initializeYocoInline();
-        };
-        
-        script.onerror = () => {
-          console.error('[Checkout] Failed to load Yoco SDK from js.yoco.com, trying alternate URL');
-          // Try alternative URL
-          const altScript = document.createElement('script');
-          altScript.src = 'https://yoco.com/sdk/releases/v10/yoco-sdk-web.js';
-          altScript.async = true;
-          altScript.onload = () => {
-            console.log('[Checkout] Yoco SDK loaded from alternate URL');
-            initializeYocoInline();
-          };
-          altScript.onerror = () => {
-            console.error('[Checkout] Failed to load Yoco SDK from both URLs');
-            setPaymentError('Payment SDK unavailable. Please try again later.');
-          };
-          document.body.appendChild(altScript);
-        };
-        
-        document.body.appendChild(script);
-      } else {
-        initializeYocoInline();
-      }
-    };
-
-    const initializeYocoInline = () => {
-      if (!window.YocoSDK) {
-        console.error('[Checkout] YocoSDK not available after load');
-        setPaymentError('Payment SDK unavailable');
-        return;
-      }
-
-      try {
-        // Use inline checkout embedded in the page
-        const yoco = new window.YocoSDK.Inline({
-          publicKey: import.meta.env.VITE_YOCO_PUBLIC_KEY || 'pk_live_67e18cc9d5e48ce32ce8c49a',
-          currency: 'ZAR',
-          amountInCents: Math.round(total * 100), // Convert to cents
-        });
-
-        setYocoInline(yoco);
-        console.log('[Checkout] Yoco Inline initialized');
-
-        // Mount the payment form to the container
-        if (yocoContainerRef.current) {
-          yoco.mount(yocoContainerRef.current);
-        }
-      } catch (error) {
-        console.error('[Checkout] Failed to initialize Yoco Inline:', error);
-        setPaymentError('Failed to initialize payment form');
-      }
-    };
-
-    loadYocoSDK();
-  }, [step, yocoInline, total]);
 
   // (Popup removed) Payment flow will create the order after payment initiation.
 
@@ -204,13 +135,10 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!validateShipping()) return;
-    if (!yocoInline) {
-      setPaymentError('Payment form not loaded. Please refresh and try again.');
-      return;
-    }
 
     setProcessing(true);
     setPaymentError('');
+    setYocoError('');
 
     try {
       const subtotal = cartTotal;
@@ -256,67 +184,15 @@ export default function CheckoutPage() {
         shippingAddress,
       });
 
-      console.log('[Checkout] Tokenizing payment with Yoco Inline');
+      console.log('[Checkout] Triggering Yoco payment');
 
-      // Tokenize the payment form
-      if (!yocoInline) {
-        throw new Error('Payment form not initialized');
-      }
-
-      const tokenResult = await yocoInline.tokenize();
-
-      if (tokenResult.error) {
-        throw new Error(tokenResult.error.message || 'Payment tokenization failed');
-      }
-
-      if (!tokenResult.token) {
-        throw new Error('No payment token received');
-      }
-
-      const token = tokenResult.token;
-      console.log('[Checkout] Payment token received:', token);
-
-      // Send token and order details to backend to process the charge
-      const chargeResp = await fetch('/api/payments/charge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          amountInCents: amount,
-          currency: 'ZAR',
-          metadata: {
-            orderId: localOrder.order.id,
-            customer: { name: shippingAddress.name, email: shippingAddress.email },
-            shippingAddress,
-            items: cart,
-            subtotal,
-            shipping,
-            tax: taxCents,
-            total: totalAmount,
-          },
-        }),
-      });
-
-      if (!chargeResp.ok) {
-        const err = await chargeResp.json().catch(() => ({}));
-        throw new Error(err.message || 'Payment processing failed');
-      }
-
-      const chargeResult = await chargeResp.json();
-      console.log('[Checkout] Charge result:', chargeResult);
-
-      if (chargeResult.success) {
-        // Update order with payment details
-        updateLocalOrder(localOrder.order.id, {
-          payment_intent_id: chargeResult.transactionId || '',
-          paymentStatus: 'paid',
-          status: 'awaiting_payment',
-        });
-
-        // Redirect to success page
-        window.location.href = `/order-confirmation?id=${localOrder.order.id}&status=success`;
-      } else {
-        throw new Error(chargeResult.message || 'Payment was not processed');
+      // Trigger the Yoco button click to open payment modal
+      if (yocoRef.current) {
+        setYocoLoading(true);
+        yocoRef.current.click();
+        
+        // Store order ID for use in Yoco callback
+        (window as Window & { __giovanniOrderId?: string }).__giovanniOrderId = localOrder.order.id;
       }
 
     } catch (error) {
@@ -668,16 +544,29 @@ export default function CheckoutPage() {
                         Complete your payment securely. Your card details are processed through our secure payment gateway.
                       </p>
 
-                      {/* Yoco Inline Payment Form */}
+                      {/* Yoco Payment Button */}
                       <div className="space-y-4">
                         <div>
                           <label className="block text-[11px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A] mb-2">
-                            Card Details
+                            Secure Payment
                           </label>
-                          <div
-                            ref={yocoContainerRef}
-                            className="min-h-[200px] border border-[#E8E5E1] rounded-sm bg-white p-4"
-                          />
+                          <div className="border border-[#E8E5E1] rounded-sm bg-white p-4">
+                            <button
+                              ref={yocoRef}
+                              onClick={handlePlaceOrder}
+                              disabled={processing}
+                              className="w-full py-4 bg-[#1A1A1A] text-white text-[11px] tracking-[0.25em] uppercase font-medium hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              {processing ? (
+                                <>
+                                  <Loader2 size={14} className="animate-spin" />
+                                  Processing Payment…
+                                </>
+                              ) : (
+                                `Pay ${formatPrice(total)}`
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
