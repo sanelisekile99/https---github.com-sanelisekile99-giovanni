@@ -232,8 +232,8 @@ export default function CheckoutPage() {
       setYocoLoading(true);
 
       // Process payment via backend API
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://exclusive-minimal-refined-1.vercel.app';
-      const chargeUrl = `${backendUrl}/api/payments/charge`;
+      // Use relative URL since frontend and backend are same Vercel deployment
+      const chargeUrl = '/api/payments/charge';
       console.log('[Checkout] Sending payment request to:', chargeUrl);
       
       const requestPayload = {
