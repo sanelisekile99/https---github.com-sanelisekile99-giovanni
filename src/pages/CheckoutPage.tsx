@@ -233,7 +233,8 @@ export default function CheckoutPage() {
 
       // Process payment via backend API
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://exclusive-minimal-refined-1.vercel.app';
-      console.log('[Checkout] Sending payment request to:', `${backendUrl}/api/payments/charge`);
+      const chargeUrl = `${backendUrl}/api/payments/charge`;
+      console.log('[Checkout] Sending payment request to:', chargeUrl);
       
       const requestPayload = {
         amount: amount,
@@ -251,7 +252,7 @@ export default function CheckoutPage() {
       
       console.log('[Checkout] Payment request payload:', { ...requestPayload, cardNumber: 'REDACTED', cvv: 'REDACTED' });
 
-      const chargeResponse = await fetch(`${backendUrl}/api/payments/charge`, {
+      const chargeResponse = await fetch(chargeUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

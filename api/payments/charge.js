@@ -158,45 +158,45 @@ async function createYocoCharge({ token, amountInCents, currency, metadata = {} 
 }
 
 export default async function handler(req, res) {
-  console.log('=== CHARGE REQUEST ===');
-  console.log('Request method:', req.method);
-  console.log('Request origin:', req.headers.origin);
-  console.log('YOCO_SECRET_KEY exists:', !!process.env.YOCO_SECRET_KEY);
-
-  // CORS handling
-  const allowedOrigins = [
+  // Set CORS headers FIRST, before any other response handling
+  const origin = req.headers.origin;
+  
+  // Allow both the custom domain and any Vercel deployment
+  const allowOrigins = [
     'https://giovanni-official.com',
     'https://www.giovanni-official.com',
-    'https://exclusive-minimal-refined-1.vercel.app',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
   ];
-
-  const origin = req.headers.origin;
-  const configuredFrontend = process.env.FRONTEND_URL || process.env.VERCEL_URL || '';
-
-  let allowOrigin = '';
-  if (!origin) {
-    allowOrigin = '*';
-  } else if (allowedOrigins.includes(origin)) {
-    allowOrigin = origin;
-  } else if (configuredFrontend && origin === configuredFrontend) {
-    allowOrigin = origin;
-  } else if (/\.vercel\.app$/.test(origin)) {
-    allowOrigin = origin;
-  }
-
-  console.log('CORS: allowOrigin ->', allowOrigin);
   
-  const effectiveAllowOrigin = allowOrigin || '*';
-  res.setHeader('Access-Control-Allow-Origin', effectiveAllowOrigin);
-  if (effectiveAllowOrigin !== '*') {
+  // Accept request if:
+  // 1. Origin is in allowed list
+  // 2. Origin is a Vercel deployment (.vercel.app)
+  // 3. No origin header (direct requests)
+  let allowOrigin = '*';
+  if (origin) {
+    if (allowOrigins.includes(origin) || /\.vercel\.app$/.test(origin) || /\.giovanni-official\.com$/.test(origin)) {
+      allowOrigin = origin;
+    }
+  }
+  
+  // Set CORS headers - CRITICAL: do this before any early returns
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  if (allowOrigin !== '*') {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
+  
+  console.log('=== CHARGE REQUEST ===');
+  console.log('Request method:', req.method);
+  console.log('Request origin:', origin);
+  console.log('CORS allowOrigin:', allowOrigin);
+  console.log('YOCO_SECRET_KEY exists:', !!process.env.YOCO_SECRET_KEY);
 
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
+  // Handle preflight
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS preflight request');
     return res.status(200).end();
