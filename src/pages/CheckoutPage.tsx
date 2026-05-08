@@ -89,17 +89,35 @@ export default function CheckoutPage() {
     if (step !== 'review' || yocoInline) return;
 
     const loadYocoSDK = async () => {
-      // Load Yoco SDK
+      // Load Yoco SDK - try multiple URLs
       if (!window.YocoSDK) {
         const script = document.createElement('script');
-        script.src = 'https://yoco.com/sdk/releases/v10/yoco-sdk-web.js';
+        // Try the correct URL for Yoco SDK
+        script.src = 'https://js.yoco.com/sdk/releases/v10/yoco-sdk-web.js';
         script.async = true;
+        
         script.onload = () => {
+          console.log('[Checkout] Yoco SDK loaded successfully');
           initializeYocoInline();
         };
+        
         script.onerror = () => {
-          setPaymentError('Failed to load payment SDK');
+          console.error('[Checkout] Failed to load Yoco SDK from js.yoco.com, trying alternate URL');
+          // Try alternative URL
+          const altScript = document.createElement('script');
+          altScript.src = 'https://yoco.com/sdk/releases/v10/yoco-sdk-web.js';
+          altScript.async = true;
+          altScript.onload = () => {
+            console.log('[Checkout] Yoco SDK loaded from alternate URL');
+            initializeYocoInline();
+          };
+          altScript.onerror = () => {
+            console.error('[Checkout] Failed to load Yoco SDK from both URLs');
+            setPaymentError('Payment SDK unavailable. Please try again later.');
+          };
+          document.body.appendChild(altScript);
         };
+        
         document.body.appendChild(script);
       } else {
         initializeYocoInline();
@@ -108,22 +126,29 @@ export default function CheckoutPage() {
 
     const initializeYocoInline = () => {
       if (!window.YocoSDK) {
+        console.error('[Checkout] YocoSDK not available after load');
         setPaymentError('Payment SDK unavailable');
         return;
       }
 
-      // Use inline checkout embedded in the page
-      const yoco = new window.YocoSDK.Inline({
-        publicKey: import.meta.env.VITE_YOCO_PUBLIC_KEY || 'pk_live_default',
-        currency: 'ZAR',
-        amountInCents: Math.round(total * 100), // Convert to cents
-      });
+      try {
+        // Use inline checkout embedded in the page
+        const yoco = new window.YocoSDK.Inline({
+          publicKey: import.meta.env.VITE_YOCO_PUBLIC_KEY || 'pk_live_67e18cc9d5e48ce32ce8c49a',
+          currency: 'ZAR',
+          amountInCents: Math.round(total * 100), // Convert to cents
+        });
 
-      setYocoInline(yoco);
+        setYocoInline(yoco);
+        console.log('[Checkout] Yoco Inline initialized');
 
-      // Mount the payment form to the container
-      if (yocoContainerRef.current) {
-        yoco.mount(yocoContainerRef.current);
+        // Mount the payment form to the container
+        if (yocoContainerRef.current) {
+          yoco.mount(yocoContainerRef.current);
+        }
+      } catch (error) {
+        console.error('[Checkout] Failed to initialize Yoco Inline:', error);
+        setPaymentError('Failed to initialize payment form');
       }
     };
 
