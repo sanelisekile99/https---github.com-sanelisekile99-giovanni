@@ -80,7 +80,7 @@ const CORE_GIOVANNI_TSHIRT_PRICE_CENTS = 199900;
 const CLASSIC_GIOVANNI_TSHIRT_PRICE_CENTS = 99900;
 const SWEATER_PRICE_CENTS = 259900;
 
-const BUCKET_HAT_PRICE_CENTS = 79900;
+const BUCKET_HAT_PRICE_CENTS = 100;
 const WOMENS_LINEN_TWO_PIECE_PRICE_CENTS = 199900;
 const MENS_LINEN_TWO_PIECE_PRICE_CENTS = 239900;
 const LIMITED_EDITION_PRICE_CENTS = 139900;
@@ -285,9 +285,9 @@ const buildProductFromFile = (fileName: string): LocalProduct | null => {
   const price = isCoreGiovanniTee
     ? CORE_GIOVANNI_TSHIRT_PRICE_CENTS
     : lower.includes('black bucket hat')
-    ? 59900
+    ? 100
     : lower.includes('crochet bucket hat') || lower.includes('crotched bucket hat')
-    ? 99900
+    ? 100
     : isClassicGiovanniTee
     ? CLASSIC_GIOVANNI_TSHIRT_PRICE_CENTS
     : productType === 'Bucket Hats'
