@@ -140,26 +140,37 @@ export default function CheckoutPage() {
   }, [validateShipping, cartTotal, cart]);
 
   const handlePlaceOrder = async () => {
-    if (!validateShipping()) return;
+    console.log('[Checkout] handlePlaceOrder called');
+    
+    if (!validateShipping()) {
+      console.log('[Checkout] Shipping validation failed');
+      return;
+    }
 
     // Validate card inputs
     if (!cardholderName.trim()) {
       setPaymentError('Please enter cardholder name');
+      console.log('[Checkout] Missing cardholder name');
       return;
     }
-    if (!cardNumber.trim() || cardNumber.replace(/\s/g, '').length < 13) {
+    const cleanCardNumber = cardNumber.replace(/\s/g, '');
+    if (!cleanCardNumber || cleanCardNumber.length < 13) {
       setPaymentError('Please enter a valid card number');
+      console.log('[Checkout] Invalid card number length:', cleanCardNumber.length);
       return;
     }
     if (!expiryMonth || !expiryYear) {
       setPaymentError('Please enter card expiry date');
+      console.log('[Checkout] Missing expiry date');
       return;
     }
     if (!cvv || cvv.length < 3) {
       setPaymentError('Please enter a valid CVV');
+      console.log('[Checkout] Invalid CVV length:', cvv.length);
       return;
     }
 
+    console.log('[Checkout] Card validation passed, starting payment');
     setProcessing(true);
     setPaymentError('');
 
@@ -169,12 +180,15 @@ export default function CheckoutPage() {
       const taxCents = tax;
       const totalAmount = subtotal + shipping + taxCents;
 
+      console.log('[Checkout] Payment amounts:', { subtotal, shipping, taxCents, totalAmount });
+
       // Yoco requires integer amounts in cents.
       const amount = Number.isFinite(totalAmount) ? Math.round(totalAmount) : NaN;
       if (!Number.isInteger(amount) || amount <= 0) {
         throw new Error('Invalid order total. Please refresh and try again.');
       }
 
+      console.log('[Checkout] Creating local order...');
       // Create local order
       const localOrder = createLocalOrder({
         customer: {
@@ -207,52 +221,86 @@ export default function CheckoutPage() {
         shippingAddress,
       });
 
-      console.log('[Checkout] Order created:', localOrder.order.id);
-      setCurrentOrderId(localOrder.order.id);
+      const orderId = localOrder.order.id;
+      console.log('[Checkout] Order created:', orderId, 'Full object:', localOrder);
+      
+      if (!orderId) {
+        throw new Error('Failed to create order - no ID returned');
+      }
+      
+      setCurrentOrderId(orderId);
       setYocoLoading(true);
 
       // Process payment via backend API
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://exclusive-minimal-refined-1.vercel.app';
+      console.log('[Checkout] Sending payment request to:', `${backendUrl}/api/payments/charge`);
+      
+      const requestPayload = {
+        amount: amount,
+        currency: 'ZAR',
+        cardholderName,
+        cardNumber: cleanCardNumber,
+        expiryMonth,
+        expiryYear,
+        cvv,
+        metadata: {
+          orderId: orderId,
+          customerEmail: shippingAddress.email,
+        },
+      };
+      
+      console.log('[Checkout] Payment request payload:', { ...requestPayload, cardNumber: 'REDACTED', cvv: 'REDACTED' });
+
       const chargeResponse = await fetch(`${backendUrl}/api/payments/charge`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: amount,
-          currency: 'ZAR',
-          cardholderName,
-          cardNumber: cardNumber.replace(/\s/g, ''),
-          expiryMonth,
-          expiryYear,
-          cvv,
-          metadata: {
-            orderId: localOrder.order.id,
-            customerEmail: shippingAddress.email,
-          },
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
-      const chargeData = await chargeResponse.json();
+      console.log('[Checkout] Payment response status:', chargeResponse.status);
+      
+      let chargeData;
+      try {
+        chargeData = await chargeResponse.json();
+      } catch (parseError) {
+        console.error('[Checkout] Failed to parse response:', parseError);
+        throw new Error('Invalid response from payment server');
+      }
+
+      console.log('[Checkout] Payment response data:', chargeData);
 
       if (!chargeResponse.ok) {
-        throw new Error(chargeData.message || 'Payment processing failed');
+        const errorMsg = chargeData?.message || chargeData?.error || 'Payment processing failed';
+        console.error('[Checkout] Payment API error:', errorMsg);
+        throw new Error(errorMsg);
       }
 
       console.log('[Checkout] Payment successful:', chargeData);
 
       // Update order with payment info
-      updateLocalOrder(localOrder.order.id, {
-        paymentStatus: 'paid',
-      });
+      try {
+        updateLocalOrder(orderId, {
+          paymentStatus: 'paid',
+        });
+        console.log('[Checkout] Order updated with payment status');
+      } catch (updateError) {
+        console.error('[Checkout] Failed to update order:', updateError);
+        // Don't throw - payment was successful, just redirect anyway
+      }
 
       // Redirect to success page
+      console.log('[Checkout] Redirecting to order confirmation');
       setYocoLoading(false);
-      window.location.href = `/order-confirmation?id=${localOrder.order.id}&status=success`;
+      setProcessing(false);
+      window.location.href = `/order-confirmation?id=${orderId}&status=success`;
 
     } catch (error) {
       console.error('[Checkout] Payment error:', error);
-      setPaymentError(error instanceof Error ? error.message : 'Payment failed');
+      const errorMsg = error instanceof Error ? error.message : 'Payment failed';
+      console.error('[Checkout] Error message:', errorMsg);
+      setPaymentError(errorMsg);
       setYocoLoading(false);
       setProcessing(false);
     }
