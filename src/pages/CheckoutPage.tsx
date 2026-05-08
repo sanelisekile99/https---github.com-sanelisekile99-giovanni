@@ -1,14 +1,21 @@
 // Yoco SDK interfaces (for type safety)
 interface YocoInlineConfig {
+  publicKey: string;
   amountInCents: number;
   currency: 'ZAR' | 'MUR';
+  amount?: number;
   layout?: 'plain' | 'basic' | 'field';
+}
+
+interface YocoInlineInstance {
+  mount: (element: HTMLElement) => void;
+  tokenize: () => Promise<{ token?: string; error?: { message: string } }>;
 }
 
 // Extend window interface for Yoco SDK
 declare global {
   interface Window {
-    YocoSDK?: unknown;
+    YocoSDK?: { Inline: new (config: YocoInlineConfig) => YocoInlineInstance };
     yocoSdkLoaded?: boolean;
     yocoSdkError?: boolean;
   }
@@ -46,10 +53,55 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'shipping' | 'review'>('shipping');
   const [processing, setProcessing] = useState(false);
 
-  // Load Yoco SDK and initialize inline when available
+  // Yoco SDK state
+  const yocoContainerRef = useRef<HTMLDivElement>(null);
+  const [yocoInline, setYocoInline] = useState<YocoInlineInstance | null>(null);
+
+  // Load Yoco SDK and initialize inline checkout
   useEffect(() => {
-    // Yoco SDK loading removed - now using checkout session approach
-  }, []);
+    if (step !== 'review' || yocoInline) return;
+
+    const loadYocoSDK = async () => {
+      // Load Yoco SDK
+      if (!window.YocoSDK) {
+        const script = document.createElement('script');
+        script.src = 'https://sdk.yoco.com/sdk/releases/v10/yoco-sdk-web.js';
+        script.async = true;
+        script.onload = () => {
+          initializeYocoInline();
+        };
+        script.onerror = () => {
+          setPaymentError('Failed to load payment SDK');
+        };
+        document.body.appendChild(script);
+      } else {
+        initializeYocoInline();
+      }
+    };
+
+    const initializeYocoInline = () => {
+      if (!window.YocoSDK) {
+        setPaymentError('Payment SDK unavailable');
+        return;
+      }
+
+      // Use inline checkout embedded in the page
+      const yoco = new window.YocoSDK.Inline({
+        publicKey: import.meta.env.VITE_YOCO_PUBLIC_KEY || 'pk_live_default',
+        currency: 'ZAR',
+        amountInCents: Math.round(total * 100), // Convert to cents
+      });
+
+      setYocoInline(yoco);
+
+      // Mount the payment form to the container
+      if (yocoContainerRef.current) {
+        yoco.mount(yocoContainerRef.current);
+      }
+    };
+
+    loadYocoSDK();
+  }, [step, yocoInline, total]);
 
   // Mount inline fields when review step becomes active (removed - using checkout session)
 
@@ -125,40 +177,13 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!validateShipping()) return;
-
-    // Safari can block popups/navigation that aren't directly tied to a user
-    // gesture. We open a blank window synchronously on click, then later
-    // navigate it to Yoco's hosted checkout URL once we receive it.
-    // If popups are blocked, we'll fall back to same-tab navigation.
-    let yocoWindow: Window | null = null;
-    try {
-      yocoWindow = window.open('', '_blank', 'noopener,noreferrer');
-      if (yocoWindow) {
-        yocoWindow.document.title = 'Redirecting to payment…';
-        yocoWindow.document.body.innerHTML = '<p style="font-family: system-ui; padding: 16px;">Redirecting to secure payment…</p>';
-      }
-    } catch (e) {
-      console.warn('[Checkout] Unable to open payment window (Safari popup blocker likely). Will fall back to same-tab redirect.', e);
-      yocoWindow = null;
+    if (!yocoInline) {
+      setPaymentError('Payment form not loaded. Please refresh and try again.');
+      return;
     }
 
     setProcessing(true);
     setPaymentError('');
-
-    // Helpful client-side diagnostics for Safari (and mixed-content issues)
-    try {
-      const backendUrl = String(import.meta.env.VITE_BACKEND_URL || '');
-      if (window.location.protocol === 'https:' && backendUrl.startsWith('http://')) {
-        console.warn('[Checkout] Mixed-content risk: site is https but VITE_BACKEND_URL is http:', backendUrl);
-      }
-      console.log('[Checkout] Initiating hosted checkout', {
-        browser: navigator.userAgent,
-        origin: window.location.origin,
-        backend: backendUrl,
-      });
-    } catch {
-      // ignore
-    }
 
     try {
       const subtotal = cartTotal;
@@ -166,12 +191,13 @@ export default function CheckoutPage() {
       const taxCents = tax;
       const totalAmount = subtotal + shipping + taxCents;
 
-  // Yoco requires integer amounts in cents.
-  const amount = Number.isFinite(totalAmount) ? Math.round(totalAmount) : NaN;
-  if (!Number.isInteger(amount) || amount <= 0) {
+      // Yoco requires integer amounts in cents.
+      const amount = Number.isFinite(totalAmount) ? Math.round(totalAmount) : NaN;
+      if (!Number.isInteger(amount) || amount <= 0) {
         throw new Error('Invalid order total. Please refresh and try again.');
       }
 
+      // Create local order
       const localOrder = createLocalOrder({
         customer: {
           name: shippingAddress.name,
@@ -203,24 +229,34 @@ export default function CheckoutPage() {
         shippingAddress,
       });
 
-      const successUrl = `${window.location.origin}/order-confirmation?id=${localOrder.order.id}&status=success`;
-      const cancelUrl = `${window.location.origin}/checkout?canceled=true`;
-    const failureUrl = `${window.location.origin}/checkout?payment_failed=true`;
+      console.log('[Checkout] Tokenizing payment with Yoco Inline');
 
-      const backendUrlRaw = String(import.meta.env.VITE_BACKEND_URL || '').trim();
-      const backendUrl = backendUrlRaw.replace(/\/$/, '');
-      const apiEndpoint = backendUrl ? `${backendUrl}/api/payments/checkout` : '/api/payments/checkout';
-      console.log('[Checkout] Fetching checkout API at:', apiEndpoint);
+      // Tokenize the payment form
+      if (!yocoInline) {
+        throw new Error('Payment form not initialized');
+      }
 
-      const checkoutResp = await fetch(apiEndpoint, {
+      const tokenResult = await yocoInline.tokenize();
+
+      if (tokenResult.error) {
+        throw new Error(tokenResult.error.message || 'Payment tokenization failed');
+      }
+
+      if (!tokenResult.token) {
+        throw new Error('No payment token received');
+      }
+
+      const token = tokenResult.token;
+      console.log('[Checkout] Payment token received:', token);
+
+      // Send token and order details to backend to process the charge
+      const chargeResp = await fetch('/api/payments/charge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount,
-      currency: 'ZAR',
-          successUrl,
-          cancelUrl,
-      failureUrl,
+          token,
+          amountInCents: amount,
+          currency: 'ZAR',
           metadata: {
             orderId: localOrder.order.id,
             customer: { name: shippingAddress.name, email: shippingAddress.email },
@@ -234,42 +270,30 @@ export default function CheckoutPage() {
         }),
       });
 
-      if (!checkoutResp.ok) {
-        const err = await checkoutResp.json().catch(() => ({}));
-        throw new Error(err.message || 'Checkout creation failed');
+      if (!chargeResp.ok) {
+        const err = await chargeResp.json().catch(() => ({}));
+        throw new Error(err.message || 'Payment processing failed');
       }
 
-      const checkoutResult = await checkoutResp.json();
-      console.log('Checkout result:', checkoutResult);
+      const chargeResult = await chargeResp.json();
+      console.log('[Checkout] Charge result:', chargeResult);
 
-      if (!checkoutResult.redirectUrl) {
-        throw new Error('Checkout created but no redirect URL returned');
-      }
-
-      if (checkoutResult.checkoutId) {
+      if (chargeResult.success) {
+        // Update order with payment details
         updateLocalOrder(localOrder.order.id, {
-          payment_intent_id: checkoutResult.checkoutId,
-          yoco_checkout_id: checkoutResult.checkoutId,
+          payment_intent_id: chargeResult.transactionId || '',
+          paymentStatus: 'paid',
+          status: 'awaiting_payment',
         });
-      }
 
-      // Prefer navigating the user-gesture-opened window (Safari-safe).
-      // If popups were blocked, fall back to same-tab navigation.
-      if (yocoWindow && !yocoWindow.closed) {
-        yocoWindow.location.href = checkoutResult.redirectUrl;
+        // Redirect to success page
+        window.location.href = `/order-confirmation?id=${localOrder.order.id}&status=success`;
       } else {
-        window.location.assign(checkoutResult.redirectUrl);
+        throw new Error(chargeResult.message || 'Payment was not processed');
       }
 
     } catch (error) {
-      console.error('Checkout error:', error);
-      // If we opened a blank payment window, close it on error to avoid
-      // leaving the user with a dead tab.
-      try {
-        if (yocoWindow && !yocoWindow.closed) yocoWindow.close();
-      } catch {
-        // ignore
-      }
+      console.error('[Checkout] Payment error:', error);
       setPaymentError(error instanceof Error ? error.message : 'Payment failed');
       setProcessing(false);
     }
@@ -621,27 +645,16 @@ export default function CheckoutPage() {
                         Complete your payment securely. Your card details are processed through our secure payment gateway.
                       </p>
 
-                      {/* Yoco Payment Status */}
+                      {/* Yoco Inline Payment Form */}
                       <div className="space-y-4">
                         <div>
                           <label className="block text-[11px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A] mb-2">
-                            Payment Method
+                            Card Details
                           </label>
-                          <div className="min-h-[60px] border border-[#E8E5E1] rounded-sm bg-white p-4 flex items-center">
-                            {!paymentError && (
-                              <div className="w-full">
-                                <div className="flex items-center gap-2 text-[#8B8B8B] text-sm">
-                                  <Lock size={14} />
-                                  Secure payment powered by Yoco
-                                </div>
-                              </div>
-                            )}
-                            {paymentError && (
-                              <div className="text-red-600 text-sm">
-                                {paymentError}
-                              </div>
-                            )}
-                          </div>
+                          <div
+                            ref={yocoContainerRef}
+                            className="min-h-[200px] border border-[#E8E5E1] rounded-sm bg-white p-4"
+                          />
                         </div>
                       </div>
 
@@ -656,7 +669,7 @@ export default function CheckoutPage() {
                             Processing Payment…
                           </>
                         ) : (
-                          'Complete Payment'
+                          `Complete Payment - ${formatPrice(total)}`
                         )}
                       </button>
                     </div>
