@@ -92,7 +92,7 @@ export default function CheckoutPage() {
       // Load Yoco SDK
       if (!window.YocoSDK) {
         const script = document.createElement('script');
-        script.src = 'https://sdk.yoco.com/sdk/releases/v10/yoco-sdk-web.js';
+        script.src = 'https://yoco.com/sdk/releases/v10/yoco-sdk-web.js';
         script.async = true;
         script.onload = () => {
           initializeYocoInline();
