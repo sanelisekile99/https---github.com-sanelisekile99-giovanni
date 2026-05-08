@@ -53,6 +53,33 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'shipping' | 'review'>('shipping');
   const [processing, setProcessing] = useState(false);
 
+  // Shipping address
+  const [shippingAddress, setShippingAddress] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: 'South Africa',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const availableCities = SA_PROVINCES_AND_CITIES[shippingAddress.state] || [];
+
+  // Costs
+  const [shippingCost, setShippingCost] = useState(0);
+  const [tax, setTax] = useState(0);
+  const [taxRate, setTaxRate] = useState(0);
+  const [costsLoading, setCostsLoading] = useState(false);
+
+  // Payment form state
+  const [paymentError, setPaymentError] = useState('');
+
+  // ── Derived values (computed early for use in effects) ─────────
+  const subtotal = cartTotal;
+  const total = subtotal + shippingCost + tax;
+
   // Yoco SDK state
   const yocoContainerRef = useRef<HTMLDivElement>(null);
   const [yocoInline, setYocoInline] = useState<YocoInlineInstance | null>(null);
@@ -102,31 +129,6 @@ export default function CheckoutPage() {
 
     loadYocoSDK();
   }, [step, yocoInline, total]);
-
-  // Mount inline fields when review step becomes active (removed - using checkout session)
-
-  // Shipping address
-  const [shippingAddress, setShippingAddress] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'South Africa',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const availableCities = SA_PROVINCES_AND_CITIES[shippingAddress.state] || [];
-
-  // Costs
-  const [shippingCost, setShippingCost] = useState(0);
-  const [tax, setTax] = useState(0);
-  const [taxRate, setTaxRate] = useState(0);
-  const [costsLoading, setCostsLoading] = useState(false);
-
-  // Payment form state
-  const [paymentError, setPaymentError] = useState('');
 
   // (Popup removed) Payment flow will create the order after payment initiation.
 
@@ -298,10 +300,6 @@ export default function CheckoutPage() {
       setProcessing(false);
     }
   };
-
-  // ── Derived values ─────────────────────────────────────────────
-  const subtotal = cartTotal;
-  const total = subtotal + shippingCost + tax;
 
   const inputClass = (field: string) =>
     `w-full h-12 px-4 py-3 border ${
