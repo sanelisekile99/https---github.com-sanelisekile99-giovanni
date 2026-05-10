@@ -147,30 +147,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Validate card inputs
-    if (!cardholderName.trim()) {
-      setPaymentError('Please enter cardholder name');
-      console.log('[Checkout] Missing cardholder name');
-      return;
-    }
-    const cleanCardNumber = cardNumber.replace(/\s/g, '');
-    if (!cleanCardNumber || cleanCardNumber.length < 13) {
-      setPaymentError('Please enter a valid card number');
-      console.log('[Checkout] Invalid card number length:', cleanCardNumber.length);
-      return;
-    }
-    if (!expiryMonth || !expiryYear) {
-      setPaymentError('Please enter card expiry date');
-      console.log('[Checkout] Missing expiry date');
-      return;
-    }
-    if (!cvv || cvv.length < 3) {
-      setPaymentError('Please enter a valid CVV');
-      console.log('[Checkout] Invalid CVV length:', cvv.length);
-      return;
-    }
-
-    console.log('[Checkout] Card validation passed, starting payment');
+    console.log('[Checkout] Shipping validation passed, starting checkout');
     setProcessing(true);
     setPaymentError('');
 
@@ -231,72 +208,63 @@ export default function CheckoutPage() {
       setCurrentOrderId(orderId);
       setYocoLoading(true);
 
-      // Send card details to backend for tokenization and payment
-      console.log('[Checkout] Sending card details to backend for processing...');
+      // Create hosted checkout session with Yoco
+      console.log('[Checkout] Creating Yoco hosted checkout...');
       
-      const chargeUrl = '/api/payments/charge';
-      console.log('[Checkout] Sending payment request to:', chargeUrl);
+      const checkoutUrl = '/api/payments/checkout';
+      console.log('[Checkout] Sending checkout request to:', checkoutUrl);
       
-      const requestPayload = {
+      const checkoutPayload = {
         amountInCents: amount,
         currency: 'ZAR',
-        cardNumber: cleanCardNumber,
-        expiryMonth,
-        expiryYear,
-        cvv,
-        cardholderName,
+        successUrl: `${window.location.origin}/order-confirmation?id=${orderId}&status=success`,
+        cancelUrl: `${window.location.origin}/checkout`,
+        failureUrl: `${window.location.origin}/checkout`,
         metadata: {
           orderId: orderId,
           customerEmail: shippingAddress.email,
+          customerName: shippingAddress.name,
         },
       };
       
-      console.log('[Checkout] Payment request payload:', { ...requestPayload, cardNumber: 'REDACTED', cvv: 'REDACTED' });
+      console.log('[Checkout] Checkout request payload:', checkoutPayload);
 
-      const chargeResponse = await fetch(chargeUrl, {
+      const checkoutResponse = await fetch(checkoutUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestPayload),
+        body: JSON.stringify(checkoutPayload),
       });
 
-      console.log('[Checkout] Payment response status:', chargeResponse.status);
+      console.log('[Checkout] Checkout response status:', checkoutResponse.status);
       
-      let chargeData;
+      let checkoutData;
       try {
-        chargeData = await chargeResponse.json();
+        checkoutData = await checkoutResponse.json();
       } catch (parseError) {
-        console.error('[Checkout] Failed to parse response:', parseError);
-        throw new Error('Invalid response from payment server');
+        console.error('[Checkout] Failed to parse checkout response:', parseError);
+        throw new Error('Invalid response from checkout server');
       }
 
-      console.log('[Checkout] Payment response data:', chargeData);
+      console.log('[Checkout] Checkout response data:', checkoutData);
 
-      if (!chargeResponse.ok) {
-        const errorMsg = chargeData?.message || chargeData?.error || 'Payment processing failed';
-        console.error('[Checkout] Payment API error:', errorMsg);
+      if (!checkoutResponse.ok) {
+        const errorMsg = checkoutData?.message || checkoutData?.error || 'Checkout creation failed';
+        console.error('[Checkout] Checkout API error:', errorMsg);
         throw new Error(errorMsg);
       }
 
-      console.log('[Checkout] Payment successful:', chargeData);
-
-      // Update order with payment info
-      try {
-        updateLocalOrder(orderId, {
-          paymentStatus: 'paid',
-        });
-        console.log('[Checkout] Order updated with payment status');
-      } catch (updateError) {
-        console.error('[Checkout] Failed to update order:', updateError);
-        // Don't throw - payment was successful, just redirect anyway
+      if (!checkoutData.redirectUrl) {
+        throw new Error('No redirect URL from checkout');
       }
 
-      // Redirect to success page
-      console.log('[Checkout] Redirecting to order confirmation');
+      console.log('[Checkout] Redirecting to Yoco hosted payment page...');
       setYocoLoading(false);
       setProcessing(false);
-      window.location.href = `/order-confirmation?id=${orderId}&status=success`;
+      
+      // Redirect to Yoco's hosted payment page
+      window.location.href = checkoutData.redirectUrl;
     } catch (error) {
       console.error('[Checkout] Payment error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Payment failed';
@@ -677,73 +645,8 @@ export default function CheckoutPage() {
                   ) : (
                     <div className="space-y-6">
                       <p className="text-sm text-[#5A5A5A] font-light leading-relaxed">
-                        Enter your card details below to complete your purchase securely.
+                        Click "Complete Payment" to securely complete your purchase via Yoco's trusted payment page.
                       </p>
-
-                      {/* Card Details Form */}
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-[11px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A] mb-3">
-                            Card Details
-                          </label>
-                          
-                          <div className="space-y-3">
-                            <div>
-                              <input
-                                type="text"
-                                placeholder="Full Name"
-                                value={cardholderName}
-                                onChange={(e) => setCardholderName(e.target.value)}
-                                className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white"
-                              />
-                            </div>
-                            
-                            <div>
-                              <input
-                                type="text"
-                                placeholder="Card Number"
-                                value={cardNumber}
-                                onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 19))}
-                                maxLength={19}
-                                className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white"
-                              />
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-3">
-                              <div>
-                                <input
-                                  type="text"
-                                  placeholder="MM"
-                                  value={expiryMonth}
-                                  onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                                  maxLength={2}
-                                  className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
-                                />
-                              </div>
-                              <div>
-                                <input
-                                  type="text"
-                                  placeholder="YY"
-                                  value={expiryYear}
-                                  onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                                  maxLength={2}
-                                  className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
-                                />
-                              </div>
-                              <div>
-                                <input
-                                  type="text"
-                                  placeholder="CVV"
-                                  value={cvv}
-                                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                  maxLength={4}
-                                  className="w-full h-12 px-4 py-3 border border-[#E8E5E1] text-sm font-light placeholder:text-[#C0C0C0] outline-none focus:border-[#1A1A1A] transition-colors tracking-wide bg-white text-center"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
                       <button
                         onClick={handlePlaceOrder}
@@ -753,7 +656,7 @@ export default function CheckoutPage() {
                         {processing ? (
                           <>
                             <Loader2 size={14} className="animate-spin" />
-                            Processing Payment…
+                            Redirecting to Payment…
                           </>
                         ) : (
                           `Complete Payment - ${formatPrice(total)}`
