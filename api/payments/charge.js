@@ -30,10 +30,13 @@ async function tokenizeCard({ cardNumber, expiryMonth, expiryYear, cvc }) {
 
   const tokenData = await tokenResponse.json();
   
+  console.log('Tokenization response status:', tokenResponse.status);
+  console.log('Tokenization response:', JSON.stringify(tokenData, null, 2));
+  
   if (!tokenResponse.ok || !tokenData.id) {
-    const errorMsg = tokenData?.message || tokenData?.error || 'Card tokenization failed';
+    const errorMsg = tokenData?.message || tokenData?.error || tokenData?.description || JSON.stringify(tokenData) || 'Card tokenization failed';
     console.error('Tokenization error:', errorMsg);
-    console.error('Tokenization response:', tokenData);
+    console.error('Public key used:', YOCO_PUBLIC_KEY ? `${YOCO_PUBLIC_KEY.substring(0, 10)}...` : 'NOT SET');
     throw new Error(errorMsg);
   }
 
