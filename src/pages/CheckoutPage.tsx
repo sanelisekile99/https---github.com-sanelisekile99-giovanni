@@ -231,21 +231,15 @@ export default function CheckoutPage() {
       setCurrentOrderId(orderId);
       setYocoLoading(true);
 
-      // Tokenize card using Yoco SDK
-      console.log('[Checkout] Tokenizing card with Yoco SDK...');
+      // Tokenize card using Yoco API
+      console.log('[Checkout] Tokenizing card with Yoco...');
       
-      if (!window.YocoSDK) {
-        throw new Error('Yoco SDK not loaded. Please refresh and try again.');
-      }
-
-      // Get public key from environment
       const publicKey = import.meta.env.VITE_YOCO_PUBLIC_KEY;
       if (!publicKey) {
         throw new Error('Yoco public key not configured. Please contact support.');
       }
 
-      // For now, use simple HTTP tokenization request directly
-      // Create token by calling Yoco tokenization endpoint
+      // Create token by calling Yoco tokenization endpoint directly
       console.log('[Checkout] Creating token from card details...');
       
       const tokenResponse = await fetch('https://api.yoco.com/v1/tokens', {
