@@ -1,4 +1,5 @@
-const YOCO_BASE_URL = 'https://payments.yoco.com/api';
+// Checkout API uses a different base URL and requires Checkout API keys (not regular API keys)
+const YOCO_CHECKOUT_URL = 'https://payments.yoco.com/api';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
 async function createYocoCheckout({ amountInCents, currency, successUrl, cancelUrl, failureUrl, metadata = {} }) {
@@ -39,7 +40,7 @@ async function createYocoCheckout({ amountInCents, currency, successUrl, cancelU
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
   try {
-    const response = await fetch(`${YOCO_BASE_URL}/checkouts/`, {
+    const response = await fetch(`${YOCO_CHECKOUT_URL}/checkouts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -7,7 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-const YOCO_BASE_URL = 'https://payments.yoco.com/api';
+// Yoco API uses https://api.yoco.com/v1 (for charges, refunds, etc.)
+const YOCO_API_URL = 'https://api.yoco.com/v1';
+// Checkout API uses https://payments.yoco.com/api (for hosted checkouts)
+const YOCO_CHECKOUT_URL = 'https://payments.yoco.com/api';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
 /**
@@ -58,7 +61,7 @@ export async function createYocoCheckout({ amountInCents, currency, successUrl, 
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
   try {
-    const response = await fetch(`${YOCO_BASE_URL}/checkouts/`, {
+    const response = await fetch(`${YOCO_CHECKOUT_URL}/checkouts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -148,7 +151,7 @@ export async function processYocoPayment({ token, amountInCents, currency, metad
   }
 
   try {
-    const response = await fetch(`${YOCO_BASE_URL}/charges/`, {
+    const response = await fetch(`${YOCO_API_URL}/charges`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -221,7 +224,7 @@ export async function refundYocoPayment(chargeId, amountInCents = null) {
   try {
     const body = amountInCents ? { amountInCents } : {};
 
-    const response = await fetch(`${YOCO_BASE_URL}/charges/${chargeId}/refunds/`, {
+    const response = await fetch(`${YOCO_API_URL}/charges/${chargeId}/refunds`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

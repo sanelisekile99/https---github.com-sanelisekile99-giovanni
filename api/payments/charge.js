@@ -1,4 +1,4 @@
-const YOCO_BASE_URL = 'https://payments.yoco.com/api';
+const YOCO_BASE_URL = 'https://api.yoco.com/v1';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
 async function createYocoCharge({ token, amountInCents, currency, cardNumber, expiryMonth, expiryYear, cvv, cardholderName, metadata = {} }) {
