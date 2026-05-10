@@ -231,26 +231,53 @@ export default function CheckoutPage() {
       setCurrentOrderId(orderId);
       setYocoLoading(true);
 
-      // Process payment via backend API
-      // Use relative URL since frontend and backend are same Vercel deployment
+      // Tokenize card using Yoco SDK
+      console.log('[Checkout] Tokenizing card with Yoco SDK...');
+      
+      if (!window.YocoSDK) {
+        throw new Error('Yoco SDK not loaded. Please refresh and try again.');
+      }
+
+      // Create Yoco Inline instance for tokenization
+      const yocoConfig: YocoInlineConfig = {
+        publicKey: import.meta.env.VITE_YOCO_PUBLIC_KEY,
+        amountInCents: amount,
+        currency: 'ZAR',
+        layout: 'plain',
+      };
+
+      const yocoInline = new window.YocoSDK.Inline(yocoConfig);
+      
+      // Tokenize the card
+      const tokenResult = await yocoInline.tokenize();
+      
+      if (tokenResult.error) {
+        console.error('[Checkout] Tokenization error:', tokenResult.error);
+        throw new Error(`Card tokenization failed: ${tokenResult.error.message}`);
+      }
+
+      const token = tokenResult.token;
+      if (!token) {
+        throw new Error('No token returned from Yoco. Please check your card details.');
+      }
+
+      console.log('[Checkout] Card tokenized successfully');
+
+      // Process payment via backend API with token
       const chargeUrl = '/api/payments/charge';
       console.log('[Checkout] Sending payment request to:', chargeUrl);
       
       const requestPayload = {
-        amount: amount,
+        token,
+        amountInCents: amount,
         currency: 'ZAR',
-        cardholderName,
-        cardNumber: cleanCardNumber,
-        expiryMonth,
-        expiryYear,
-        cvv,
         metadata: {
           orderId: orderId,
           customerEmail: shippingAddress.email,
         },
       };
       
-      console.log('[Checkout] Payment request payload:', { ...requestPayload, cardNumber: 'REDACTED', cvv: 'REDACTED' });
+      console.log('[Checkout] Payment request payload:', requestPayload);
 
       const chargeResponse = await fetch(chargeUrl, {
         method: 'POST',

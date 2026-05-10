@@ -1,7 +1,7 @@
 const YOCO_BASE_URL = 'https://api.yoco.com/v1';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
 
-async function createYocoCharge({ token, amountInCents, currency, cardNumber, expiryMonth, expiryYear, cvv, cardholderName, metadata = {} }) {
+async function createYocoCharge({ token, amountInCents, currency, metadata = {} }) {
   console.log('YOCO_SECRET_KEY check:', !!YOCO_SECRET_KEY);
   if (!YOCO_SECRET_KEY) {
     console.error('ERROR: YOCO_SECRET_KEY environment variable is missing or empty');
@@ -13,17 +13,21 @@ async function createYocoCharge({ token, amountInCents, currency, cardNumber, ex
     throw new Error('Invalid YOCO_SECRET_KEY format');
   }
 
-  console.log('Creating YOCO charge with:', {
+  if (!token) {
+    throw new Error('Payment token is required. Card must be tokenized on frontend using Yoco SDK.');
+  }
+
+  console.log('Creating YOCO charge with token:', {
     amount: amountInCents,
     currency,
     hasToken: !!token,
-    hasCardDetails: !!(cardNumber && expiryMonth && expiryYear && cvv),
     hasSecretKey: !!YOCO_SECRET_KEY,
     keyType: YOCO_SECRET_KEY.startsWith('sk_live_') ? 'LIVE' : 'TEST'
   });
 
-  // Build request body based on what we have
+  // Build request body - ONLY token-based charges
   const requestBody = {
+    token,
     amount: amountInCents,
     currency,
     metadata: {
@@ -33,28 +37,10 @@ async function createYocoCharge({ token, amountInCents, currency, cardNumber, ex
     },
   };
 
-  // Add token or card details
-  if (token) {
-    requestBody.token = token;
-  } else if (cardNumber && expiryMonth && expiryYear && cvv) {
-    // Send card details directly - Yoco may need these fields
-    requestBody.card = {
-      number: cardNumber,
-      expiry_month: parseInt(expiryMonth),
-      expiry_year: 2000 + parseInt(expiryYear),
-      cvc: cvv,
-    };
-    if (cardholderName) {
-      requestBody.card.name_on_card = cardholderName;
-      requestBody.metadata.cardholderName = cardholderName;
-    }
-  }
-
-  console.log('Charge request body (masked):', {
+  console.log('Charge request body:', {
     amount: amountInCents,
     currency,
-    ...(token && { token }),
-    ...(cardNumber && { card: { number: `****${cardNumber.slice(-4)}`, expiry_month: expiryMonth, expiry_year: expiryYear, cvc: '***' } }),
+    hasToken: !!requestBody.token,
     metadata: requestBody.metadata,
   });
 
@@ -176,18 +162,19 @@ export default async function handler(req, res) {
   console.log('Charge creation endpoint called with body:', JSON.stringify(req.body));
   try {
     const { 
-      token, 
+      token,
       amountInCents, 
       amount, 
       currency, 
       metadata,
-      // Card details for tokenization
-      cardNumber,
-      expiryMonth,
-      expiryYear,
-      cvv,
-      cardholderName,
     } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        error: 'Missing required field: token',
+        details: 'Card must be tokenized on frontend using Yoco SDK before sending to API'
+      });
+    }
 
     const providedAmount = amountInCents ?? amount;
     if (providedAmount == null || !currency) {
@@ -209,36 +196,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // Determine if we're using a token or need to use card details
-    let chargeToken = token;
-    
-    if (!chargeToken && (cardNumber && expiryMonth && expiryYear && cvv && cardholderName)) {
-      // We have card details - send directly to Yoco
-      console.log('Card details provided, creating charge with card data...');
-      
-      const result = await createYocoCharge({
-        amountInCents: amountCents,
-        currency,
-        cardNumber,
-        expiryMonth,
-        expiryYear,
-        cvv,
-        cardholderName,
-        metadata
-      });
-
-      return res.json(result);
-    } else if (!chargeToken) {
-      return res.status(400).json({
-        error: 'Missing required fields: either token or full card details (cardNumber, expiryMonth, expiryYear, cvv, cardholderName)'
-      });
-    }
-
-    // If we have a token, use it directly
-    console.log('Creating Yoco charge with token:', { amount: amountCents, currency, hasToken: !!chargeToken });
+    console.log('Creating Yoco charge with token:', { amount: amountCents, currency, hasToken: !!token });
 
     const result = await createYocoCharge({
-      token: chargeToken,
+      token,
       amountInCents: amountCents,
       currency,
       metadata
