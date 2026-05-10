@@ -91,12 +91,20 @@ export default function AccountPage() {
                         <p className="text-sm text-[#8B8B8B] font-light">
                           {new Date(order.created_at).toLocaleDateString('en-ZA')}
                         </p>
-                        <Link
-                          to={`/order-confirmation?id=${order.id}`}
-                          className="text-[11px] tracking-[0.2em] uppercase text-[#1A1A1A] border-b border-[#1A1A1A] pb-0.5"
-                        >
-                          View Order
-                        </Link>
+                        <div className="flex gap-3">
+                          <Link
+                            to={`/order-tracking?id=${order.id}`}
+                            className="text-[11px] tracking-[0.2em] uppercase text-[#1A1A1A] border-b border-[#1A1A1A] pb-0.5 hover:text-[#8B8B8B] hover:border-[#8B8B8B] transition-colors"
+                          >
+                            Track
+                          </Link>
+                          <Link
+                            to={`/order-confirmation?id=${order.id}`}
+                            className="text-[11px] tracking-[0.2em] uppercase text-[#1A1A1A] border-b border-[#1A1A1A] pb-0.5 hover:text-[#8B8B8B] hover:border-[#8B8B8B] transition-colors"
+                          >
+                            View
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ))}

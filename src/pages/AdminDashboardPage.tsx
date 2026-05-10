@@ -194,15 +194,23 @@ export default function AdminDashboardPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              logoutAdmin();
-              navigate('/admin/login', { replace: true });
-            }}
-            className="h-10 px-5 border border-[#1A1A1A] text-[11px] tracking-[0.2em] uppercase text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
-          >
-            Logout Admin
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => navigate('/admin/orders/tracking')}
+              className="h-10 px-5 border border-[#7BAF9E] text-[11px] tracking-[0.2em] uppercase text-[#7BAF9E] hover:bg-[#7BAF9E] hover:text-white transition-colors"
+            >
+              Manage Order Tracking
+            </button>
+            <button
+              onClick={() => {
+                logoutAdmin();
+                navigate('/admin/login', { replace: true });
+              }}
+              className="h-10 px-5 border border-[#1A1A1A] text-[11px] tracking-[0.2em] uppercase text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
+            >
+              Logout Admin
+            </button>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5 mb-10">

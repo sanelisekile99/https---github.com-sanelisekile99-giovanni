@@ -14,11 +14,13 @@ import ProductPage from "./pages/ProductPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import OrderTrackingPage from "./pages/OrderTrackingPage";
 import WishlistPage from "./pages/WishlistPage";
 import AccountPage from "./pages/AccountPage";
 import AccountAuthPage from "./pages/AccountAuthPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminOrderTrackingPage from "./pages/AdminOrderTrackingPage";
 import DebugProducts from "./pages/DebugProducts";
 import NotFound from "./pages/NotFound";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -53,9 +55,18 @@ export default function HomePage() {
                         </AdminProtectedRoute>
                       }
                     />
+                    <Route
+                      path="/admin/orders/tracking"
+                      element={
+                        <AdminProtectedRoute>
+                          <AdminOrderTrackingPage />
+                        </AdminProtectedRoute>
+                      }
+                    />
                     <Route path="/cart" element={<CartPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
                     <Route path="/order-confirmation" element={<OrderConfirmation />} />
+                    <Route path="/order-tracking" element={<OrderTrackingPage />} />
                     <Route path="/debug-products" element={<DebugProducts />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

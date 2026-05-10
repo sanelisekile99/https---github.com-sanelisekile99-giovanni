@@ -185,7 +185,15 @@ export default function OrderConfirmation() {
             Continue Shopping
             <ArrowRight size={14} strokeWidth={1.5} />
           </Link>
-          <div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {order && (
+              <Link
+                to={`/order-tracking?id=${order.id}`}
+                className="text-[11px] tracking-[0.15em] uppercase text-[#1A1A1A] border-b border-[#1A1A1A] pb-0.5 hover:text-[#8B8B8B] hover:border-[#8B8B8B] transition-colors"
+              >
+                Track Order
+              </Link>
+            )}
             <Link
               to="/"
               className="text-[11px] tracking-[0.15em] uppercase text-[#8B8B8B] hover:text-[#1A1A1A] transition-colors"

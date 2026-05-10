@@ -250,6 +250,97 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
+// Order tracking endpoints
+app.post('/api/orders/:orderId/tracking', express.json(), (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { tracking_number, tracking_carrier, estimated_delivery } = req.body;
+
+    // Validate input
+    if (!tracking_number || !tracking_carrier) {
+      return res.status(400).json({
+        error: 'Missing required fields: tracking_number, tracking_carrier',
+      });
+    }
+
+    // TODO: Update order in database with tracking info
+    // For now, respond with success
+    res.json({
+      success: true,
+      message: 'Tracking information updated',
+      data: {
+        orderId,
+        tracking_number,
+        tracking_carrier,
+        estimated_delivery: estimated_delivery || null,
+      },
+    });
+  } catch (error) {
+    console.error('Tracking update error:', error);
+    res.status(500).json({ error: 'Failed to update tracking information' });
+  }
+});
+
+app.post('/api/orders/:orderId/tracking/events', express.json(), (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status, description, location } = req.body;
+
+    // Validate input
+    const validStatuses = ['processing', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+      });
+    }
+
+    if (!description) {
+      return res.status(400).json({
+        error: 'Missing required field: description',
+      });
+    }
+
+    // TODO: Add tracking event to order in database
+    // For now, respond with success
+    res.json({
+      success: true,
+      message: 'Tracking event added',
+      data: {
+        orderId,
+        status,
+        description,
+        location: location || null,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Tracking event error:', error);
+    res.status(500).json({ error: 'Failed to add tracking event' });
+  }
+});
+
+app.get('/api/orders/:orderId/tracking', (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // TODO: Fetch order tracking info from database
+    // For now, return mock response
+    res.json({
+      success: true,
+      data: {
+        orderId,
+        tracking_number: null,
+        tracking_carrier: null,
+        estimated_delivery: null,
+        events: [],
+      },
+    });
+  } catch (error) {
+    console.error('Tracking retrieval error:', error);
+    res.status(500).json({ error: 'Failed to retrieve tracking information' });
+  }
+});
+
 // Yoco webhook handler
 app.post('/api/webhooks/yoco', express.raw({ type: 'application/json' }), (req, res) => {
   try {

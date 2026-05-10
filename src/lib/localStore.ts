@@ -49,6 +49,14 @@ export type LocalOrderItem = {
   total: number;
 };
 
+export type OrderTrackingEvent = {
+  id: string;
+  status: 'processing' | 'shipped' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  timestamp: string;
+  description: string;
+  location?: string;
+};
+
 export type LocalOrder = {
   id: string;
   customer_id: string;
@@ -64,6 +72,10 @@ export type LocalOrder = {
   paymentStatus?: 'pending' | 'paid';
   orderStatus?: 'awaiting_payment' | 'confirmed';
   yoco_checkout_id?: string | null;
+  tracking_number?: string | null;
+  tracking_carrier?: string | null;
+  estimated_delivery?: string | null;
+  tracking_events?: OrderTrackingEvent[];
 };
 
 const productImages = {
@@ -389,4 +401,43 @@ export const getLocalOrderItems = (orderId?: string) => {
   } catch {
     return [];
   }
+};
+
+// Tracking functions
+export const updateOrderTracking = (orderId: string, trackingData: {
+  tracking_number?: string;
+  tracking_carrier?: string;
+  estimated_delivery?: string;
+  status?: string;
+}) => {
+  return updateLocalOrder(orderId, {
+    tracking_number: trackingData.tracking_number,
+    tracking_carrier: trackingData.tracking_carrier,
+    estimated_delivery: trackingData.estimated_delivery,
+  });
+};
+
+export const addTrackingEvent = (orderId: string, event: Omit<OrderTrackingEvent, 'id'>) => {
+  const order = getLocalOrder(orderId);
+  if (!order) return null;
+
+  const trackingEvents = order.tracking_events || [];
+  const newEvent: OrderTrackingEvent = {
+    id: crypto.randomUUID(),
+    ...event,
+  };
+
+  trackingEvents.push(newEvent);
+  return updateLocalOrder(orderId, { tracking_events: trackingEvents });
+};
+
+export const getTrackingEvents = (orderId: string): OrderTrackingEvent[] => {
+  const order = getLocalOrder(orderId);
+  return order?.tracking_events || [];
+};
+
+export const getLatestTrackingEvent = (orderId: string): OrderTrackingEvent | null => {
+  const events = getTrackingEvents(orderId);
+  if (events.length === 0) return null;
+  return events[events.length - 1];
 };
