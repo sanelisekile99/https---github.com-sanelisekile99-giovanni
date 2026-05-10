@@ -1,10 +1,16 @@
 const YOCO_BASE_URL = 'https://api.yoco.com/v1';
 const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
-const YOCO_PUBLIC_KEY = process.env.VITE_YOCO_PUBLIC_KEY;
+// Backend needs YOCO_PUBLIC_KEY (not VITE_YOCO_PUBLIC_KEY which is frontend only)
+const YOCO_PUBLIC_KEY = process.env.YOCO_PUBLIC_KEY || process.env.VITE_YOCO_PUBLIC_KEY;
 
 // Step 1: Tokenize card details
 async function tokenizeCard({ cardNumber, expiryMonth, expiryYear, cvc }) {
   console.log('Tokenizing card on backend...');
+  console.log('Public key available:', !!YOCO_PUBLIC_KEY);
+  
+  if (!YOCO_PUBLIC_KEY) {
+    throw new Error('YOCO_PUBLIC_KEY not configured in environment variables');
+  }
   
   const tokenResponse = await fetch(`${YOCO_BASE_URL}/tokens`, {
     method: 'POST',
@@ -27,6 +33,7 @@ async function tokenizeCard({ cardNumber, expiryMonth, expiryYear, cvc }) {
   if (!tokenResponse.ok || !tokenData.id) {
     const errorMsg = tokenData?.message || tokenData?.error || 'Card tokenization failed';
     console.error('Tokenization error:', errorMsg);
+    console.error('Tokenization response:', tokenData);
     throw new Error(errorMsg);
   }
 
