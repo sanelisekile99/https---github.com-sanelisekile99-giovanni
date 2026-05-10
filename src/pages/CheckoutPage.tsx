@@ -231,64 +231,27 @@ export default function CheckoutPage() {
       setCurrentOrderId(orderId);
       setYocoLoading(true);
 
-      // Tokenize card using Yoco API
-      console.log('[Checkout] Tokenizing card with Yoco...');
+      // Send card details to backend for tokenization and payment
+      console.log('[Checkout] Sending card details to backend for processing...');
       
-      const publicKey = import.meta.env.VITE_YOCO_PUBLIC_KEY;
-      if (!publicKey) {
-        throw new Error('Yoco public key not configured. Please contact support.');
-      }
-
-      // Create token by calling Yoco tokenization endpoint directly
-      console.log('[Checkout] Creating token from card details...');
-      
-      const tokenResponse = await fetch('https://api.yoco.com/v1/tokens', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          publicKey,
-          card: {
-            number: cleanCardNumber.replace(/\s/g, ''),
-            expiryMonth: parseInt(expiryMonth),
-            expiryYear: 2000 + parseInt(expiryYear),
-            cvc: cvv,
-          },
-        }),
-      });
-
-      let tokenData;
-      try {
-        tokenData = await tokenResponse.json();
-      } catch {
-        throw new Error('Failed to tokenize card');
-      }
-
-      if (!tokenResponse.ok || !tokenData.id) {
-        const errorMsg = tokenData?.message || tokenData?.error || 'Card tokenization failed';
-        console.error('[Checkout] Tokenization error:', errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      const token = tokenData.id;
-      console.log('[Checkout] Card tokenized successfully');
-
-      // Process payment via backend API with token
       const chargeUrl = '/api/payments/charge';
       console.log('[Checkout] Sending payment request to:', chargeUrl);
       
       const requestPayload = {
-        token,
         amountInCents: amount,
         currency: 'ZAR',
+        cardNumber: cleanCardNumber,
+        expiryMonth,
+        expiryYear,
+        cvv,
+        cardholderName,
         metadata: {
           orderId: orderId,
           customerEmail: shippingAddress.email,
         },
       };
       
-      console.log('[Checkout] Payment request payload:', requestPayload);
+      console.log('[Checkout] Payment request payload:', { ...requestPayload, cardNumber: 'REDACTED', cvv: 'REDACTED' });
 
       const chargeResponse = await fetch(chargeUrl, {
         method: 'POST',
