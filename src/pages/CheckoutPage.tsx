@@ -238,29 +238,46 @@ export default function CheckoutPage() {
         throw new Error('Yoco SDK not loaded. Please refresh and try again.');
       }
 
-      // Create Yoco Inline instance for tokenization
-      const yocoConfig: YocoInlineConfig = {
-        publicKey: import.meta.env.VITE_YOCO_PUBLIC_KEY,
-        amountInCents: amount,
-        currency: 'ZAR',
-        layout: 'plain',
-      };
-
-      const yocoInline = new window.YocoSDK.Inline(yocoConfig);
-      
-      // Tokenize the card
-      const tokenResult = await yocoInline.tokenize();
-      
-      if (tokenResult.error) {
-        console.error('[Checkout] Tokenization error:', tokenResult.error);
-        throw new Error(`Card tokenization failed: ${tokenResult.error.message}`);
+      // Get public key from environment
+      const publicKey = import.meta.env.VITE_YOCO_PUBLIC_KEY;
+      if (!publicKey) {
+        throw new Error('Yoco public key not configured. Please contact support.');
       }
 
-      const token = tokenResult.token;
-      if (!token) {
-        throw new Error('No token returned from Yoco. Please check your card details.');
+      // For now, use simple HTTP tokenization request directly
+      // Create token by calling Yoco tokenization endpoint
+      console.log('[Checkout] Creating token from card details...');
+      
+      const tokenResponse = await fetch('https://api.yoco.com/v1/tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          publicKey,
+          card: {
+            number: cleanCardNumber.replace(/\s/g, ''),
+            expiryMonth: parseInt(expiryMonth),
+            expiryYear: 2000 + parseInt(expiryYear),
+            cvc: cvv,
+          },
+        }),
+      });
+
+      let tokenData;
+      try {
+        tokenData = await tokenResponse.json();
+      } catch {
+        throw new Error('Failed to tokenize card');
       }
 
+      if (!tokenResponse.ok || !tokenData.id) {
+        const errorMsg = tokenData?.message || tokenData?.error || 'Card tokenization failed';
+        console.error('[Checkout] Tokenization error:', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      const token = tokenData.id;
       console.log('[Checkout] Card tokenized successfully');
 
       // Process payment via backend API with token
@@ -323,7 +340,6 @@ export default function CheckoutPage() {
       setYocoLoading(false);
       setProcessing(false);
       window.location.href = `/order-confirmation?id=${orderId}&status=success`;
-
     } catch (error) {
       console.error('[Checkout] Payment error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Payment failed';
