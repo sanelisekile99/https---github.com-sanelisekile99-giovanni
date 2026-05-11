@@ -7,6 +7,7 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -25,6 +26,7 @@ export default function AdminLoginPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
+    setLoading(true);
     console.log('Submitting admin login form');
 
     try {
@@ -32,6 +34,7 @@ export default function AdminLoginPage() {
       console.log('Login result:', result);
       if (!result.ok) {
         setError(result.message);
+        setLoading(false);
         return;
       }
 
@@ -41,6 +44,7 @@ export default function AdminLoginPage() {
     } catch (error) {
       console.error('Unexpected error during admin login:', error);
       setError('An unexpected error occurred. Please try again.');
+      setLoading(false);
     }
   };
 
@@ -59,7 +63,8 @@ export default function AdminLoginPage() {
             onChange={(event) => setEmail(event.target.value)}
             placeholder="Admin email"
             required
-            className="w-full h-11 px-4 border border-[#E8E5E1] text-sm outline-none focus:border-[#1A1A1A]"
+            disabled={loading}
+            className="w-full h-11 px-4 border border-[#E8E5E1] text-sm outline-none focus:border-[#1A1A1A] disabled:bg-[#F5F5F5]"
           />
           <input
             type="password"
@@ -67,16 +72,18 @@ export default function AdminLoginPage() {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Admin password"
             required
-            className="w-full h-11 px-4 border border-[#E8E5E1] text-sm outline-none focus:border-[#1A1A1A]"
+            disabled={loading}
+            className="w-full h-11 px-4 border border-[#E8E5E1] text-sm outline-none focus:border-[#1A1A1A] disabled:bg-[#F5F5F5]"
           />
 
           {error && <p className="text-[12px] text-red-500">{error}</p>}
 
           <button
             type="submit"
-            className="w-full h-11 bg-[#1A1A1A] text-white text-[11px] tracking-[0.2em] uppercase hover:bg-[#333] transition-colors"
+            disabled={loading}
+            className="w-full h-11 bg-[#1A1A1A] text-white text-[11px] tracking-[0.2em] uppercase hover:bg-[#333] transition-colors disabled:bg-[#999]"
           >
-            Login to Dashboard
+            {loading ? 'Logging in...' : 'Login to Dashboard'}
           </button>
         </form>
 

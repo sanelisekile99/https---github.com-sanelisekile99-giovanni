@@ -54,13 +54,20 @@ export const loginAdmin = async (email: string, password: string) => {
     if (!isAdmin) {
       console.log('User is not admin, signing out');
       await signOut(auth);
-      return { ok: false as const, message: 'Access denied. Not an admin user.' };
+      return { ok: false as const, message: 'Access denied. Not an admin user. Please ensure the admin custom claim has been set using set-admin-claim.js' };
     }
 
     console.log('Admin login successful, redirecting to dashboard');
     return { ok: true as const };
   } catch (error: unknown) {
     console.error('Admin login error:', error);
+    if (error instanceof Error) {
+      if (error.message.includes('auth/user-not-found')) {
+        return { ok: false as const, message: 'User not found. Please check the email address.' };
+      } else if (error.message.includes('auth/wrong-password')) {
+        return { ok: false as const, message: 'Incorrect password.' };
+      }
+    }
     const message = error instanceof Error ? error.message : 'Login failed.';
     return { ok: false as const, message };
   }
