@@ -14,7 +14,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { getLocalOrder, getLocalOrderItems, getTrackingEvents, LocalOrder, LocalOrderItem, OrderTrackingEvent } from '@/lib/localStore';
 
-const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
 type TrackingStatus = 'processing' | 'shipped' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'cancelled';
 

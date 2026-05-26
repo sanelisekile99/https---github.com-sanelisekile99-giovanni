@@ -4,7 +4,7 @@ import Footer from '@/components/Footer';
 import { useClientAccount } from '@/contexts/ClientAccountContext';
 import { getLocalOrdersByCustomerEmail } from '@/lib/localStore.generated';
 
-const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
 export default function AccountPage() {
   const navigate = useNavigate();

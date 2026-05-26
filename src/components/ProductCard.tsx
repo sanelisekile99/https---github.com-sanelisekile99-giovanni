@@ -256,7 +256,7 @@ export default function ProductCard({ product, className = '', imageOverride }: 
           {product.name}
         </h3>
         <p className="text-sm font-light text-[#5A5A5A]">
-          R {(price / 100).toLocaleString('en-ZA')}
+          ZAR {(price / 100).toLocaleString('en-ZA')}
         </p>
       </div>
     </Link>

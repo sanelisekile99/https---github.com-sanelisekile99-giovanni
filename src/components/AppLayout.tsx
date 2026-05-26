@@ -160,6 +160,8 @@ export default function AppLayout() {
                 't-shirts': imageCatalog.chocolateTShirt || '',
                 'tshirts': imageCatalog.chocolateTShirt || '',
                 'tshirt': imageCatalog.chocolateTShirt || '',
+                'formal-shirts': imageCatalog.formalShirt || '',
+                'formal-shirt': imageCatalog.formalShirt || '',
                 'sweaters': imageCatalog.sweater || '',
                 'sweater': imageCatalog.sweater || '',
                 // cardigans removed
@@ -176,8 +178,8 @@ export default function AppLayout() {
                 'limited': imageCatalog.whiteTShirt || '',
               };
               const normalizedHandle = (col.handle || '').toLowerCase();
-              const inferredCollectionImage = normalizedHandle.includes('shirt')
-                ? imageCatalog.chocolateTShirt || ''
+              const inferredCollectionImage = normalizedHandle.includes('formal')
+                ? imageCatalog.formalShirt || ''
                 : normalizedHandle.includes('sweater')
                 ? imageCatalog.sweater || ''
                 : normalizedHandle.includes('bucket')
@@ -190,6 +192,8 @@ export default function AppLayout() {
                 ? imageCatalog.womenLinenSet || imageCatalog.menLinenSet || ''
                 : normalizedHandle.includes('limited')
                 ? imageCatalog.whiteTShirt || ''
+                : normalizedHandle.includes('shirt')
+                ? imageCatalog.chocolateTShirt || ''
                 : '';
               const collectionImage =
                 categoryImages[normalizedHandle] || inferredCollectionImage || resolveImageSrc(col.image_url) || '';
@@ -197,12 +201,12 @@ export default function AppLayout() {
                 <Link
                   key={col.id}
                   to={`/collections/${col.handle}`}
-                  className="group relative aspect-[3/4] bg-[#F8F6F3] overflow-hidden"
+                  className="group relative aspect-[3/4] bg-[#F8F6F3] overflow-hidden flex items-center justify-center"
                 >
                   <img
                     src={collectionImage}
                     alt={col.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />

@@ -41,7 +41,7 @@ export default function Header() {
     }
   };
 
-  const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+  const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
   return (
     <>

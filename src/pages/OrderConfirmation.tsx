@@ -41,7 +41,7 @@ export default function OrderConfirmation() {
     markPaid();
   }, [orderId, searchParams]);
 
-  const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+  const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
   const titleMessage = order?.status === 'paid'
     ? 'Your payment has been confirmed and your order is being prepared.'

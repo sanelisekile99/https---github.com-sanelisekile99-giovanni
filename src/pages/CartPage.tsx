@@ -11,7 +11,7 @@ export default function CartPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string>('');
 
-  const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+  const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
   const handleProceedToCheckout = () => {
     // Validate that all products with variants have a variant selected

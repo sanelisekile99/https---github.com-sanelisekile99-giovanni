@@ -223,12 +223,12 @@ export default function ProductPage() {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-6 lg:py-10">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
           {/* Image */}
-          <div className="aspect-[4/5] bg-[#F8F6F3] overflow-hidden">
+          <div className="aspect-[4/5] bg-[#F8F6F3] overflow-hidden flex items-center justify-center">
             {productImage && (
               <img
                 src={productImage}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             )}
           </div>
@@ -242,7 +242,7 @@ export default function ProductPage() {
               {product.name}
             </h1>
             <p className="text-xl font-light text-[#1A1A1A] mb-6">
-              R {(currentPrice / 100).toLocaleString('en-ZA')}
+              ZAR {(currentPrice / 100).toLocaleString('en-ZA')}
             </p>
 
             {/* Free shipping badge */}

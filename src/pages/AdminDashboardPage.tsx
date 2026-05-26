@@ -11,7 +11,7 @@ import {
 } from '@/lib/localStore.generated';
 import { logoutAdmin } from '@/lib/adminAuth';
 
-const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();

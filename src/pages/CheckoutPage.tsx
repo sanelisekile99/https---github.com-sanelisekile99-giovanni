@@ -29,7 +29,7 @@ import { ChevronLeft, Lock, Check, Loader2 } from 'lucide-react';
 import { createLocalOrder, getProductByHandle, getProducts, updateLocalOrder } from '@/lib/localStore';
 
 // ── Helpers ──────────────────────────────────────────────────────────
-const formatPrice = (cents: number) => `R ${(cents / 100).toLocaleString('en-ZA')}`;
+const formatPrice = (cents: number) => `ZAR ${(cents / 100).toLocaleString('en-ZA')}`;
 
 const SA_PROVINCES_AND_CITIES: Record<string, string[]> = {
   'Eastern Cape': ['Gqeberha', 'East London', 'Mthatha', 'Grahamstown'],
@@ -475,20 +475,15 @@ export default function CheckoutPage() {
 
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <select
+                      <input
+                        type="text"
+                        placeholder="City"
                         value={shippingAddress.city}
                         onChange={(e) =>
                           setShippingAddress({ ...shippingAddress, city: e.target.value })
                         }
                         className={inputClass('city')}
-                      >
-                        <option value="">Select City</option>
-                        {availableCities.map((city) => (
-                          <option key={city} value={city}>
-                            {city}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {errors.city && (
                         <p className="text-red-400 text-[11px] mt-1">{errors.city}</p>
                       )}
