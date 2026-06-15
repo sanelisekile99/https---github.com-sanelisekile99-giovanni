@@ -208,11 +208,7 @@ export default function ProductCard({ product, className = '', imageOverride }: 
         
         {/* Badges */}
         <div className="absolute top-4 left-4 flex flex-col gap-2">
-          {isLimited && (
-            <span className="bg-[#1A1A1A] text-white text-[9px] tracking-[0.2em] uppercase px-3 py-1.5 font-medium">
-              Limited Edition
-            </span>
-          )}
+
           {isPreOrder && (
             <span className="bg-[#C07A2B] text-white text-[9px] tracking-[0.2em] uppercase px-3 py-1.5 font-medium">
               Pre-order

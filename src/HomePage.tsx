@@ -9,7 +9,9 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { ClientAccountProvider } from "@/contexts/ClientAccountContext";
 import Index from "./pages/Index";
 import ShopPage from "./pages/ShopPage";
+import CollectionsPage from "./pages/CollectionsPage";
 import CollectionPage from "./pages/CollectionPage";
+import TShirtsCategoryPage from "./pages/TShirtsCategoryPage";
 import ProductPage from "./pages/ProductPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
@@ -41,6 +43,9 @@ export default function HomePage() {
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/shop" element={<ShopPage />} />
+                    <Route path="/collections" element={<CollectionsPage />} />
+                    <Route path="/collections/t-shirts" element={<TShirtsCategoryPage />} />
+                    <Route path="/collections/t-shirts/:subcategory" element={<CollectionPage />} />
                     <Route path="/collections/:handle" element={<CollectionPage />} />
                     <Route path="/product/:handle" element={<ProductPage />} />
                     <Route path="/wishlist" element={<WishlistPage />} />

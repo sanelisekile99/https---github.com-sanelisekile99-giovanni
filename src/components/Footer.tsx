@@ -131,14 +131,7 @@ export default function Footer() {
                   Linen
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/collections/limited-edition"
-                  className="text-[13px] text-white/50 hover:text-white transition-colors font-light"
-                >
-                  Limited Edition
-                </Link>
-              </li>
+
             </ul>
           </div>
           <div>

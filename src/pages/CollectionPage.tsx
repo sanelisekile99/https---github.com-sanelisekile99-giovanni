@@ -3,23 +3,95 @@ import { useParams, Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { getCollectionByHandle, getCollectionProducts } from '@/lib/localStore.generated';
+import { getCollectionByHandle, getCollectionProducts, getProducts } from '@/lib/localStore.generated';
 import type { LocalCollection, LocalProduct } from '@/lib/localStore.generated';
 
+// Map collection handles to their product subcollection field and product sub-type
+const collectionToProductFilter: Record<string, { collection: string; product_sub_type?: string }> = {
+  'classic-tees': { collection: 'classic' },
+  'core-tees': { collection: 'core' },
+  'signature-tees': { collection: 'signature', product_sub_type: 'tee' },
+  'signature-shorts': { collection: 'signature', product_sub_type: 'shorts' },
+  'classic': { collection: 'classic' },
+  'core': { collection: 'core' },
+  'signature': { collection: 'signature', product_sub_type: 'tee' },
+};
 
 export default function CollectionPage() {
-  const { handle } = useParams<{ handle: string }>();
+  const { handle, subcategory } = useParams<{ handle?: string; subcategory?: string }>();
   const [collection, setCollection] = useState<LocalCollection | null>(null);
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    const collectionData = getCollectionByHandle(handle);
-    setCollection(collectionData || null);
-    setProducts(collectionData ? getCollectionProducts(collectionData.handle) : []);
+    let collectionData: LocalCollection | null = null;
+    let filteredProducts: LocalProduct[] = [];
+
+    if (subcategory && !handle) {
+      // Handle nested T-shirt routes: /collections/t-shirts/:subcategory
+      // When route is /collections/t-shirts/classic, subcategory='classic', handle=undefined
+      const collectionMap: Record<string, LocalCollection | null> = {
+        classic: getCollectionByHandle('classic-tees'),
+        core: getCollectionByHandle('core-tees'),
+        signature: getCollectionByHandle('signature-tees'),
+      };
+      
+      collectionData = collectionMap[subcategory] || null;
+      if (collectionData) {
+        const filterConfig = collectionToProductFilter[subcategory];
+        filteredProducts = getProducts().filter((p) => {
+          if (p.collection !== filterConfig.collection) return false;
+          if (filterConfig.product_sub_type) {
+            return p.product_sub_type === filterConfig.product_sub_type;
+          }
+          return true;
+        });
+      }
+    } else if (handle === 't-shirts' && subcategory) {
+      // Alternative: Handle nested T-shirt routes with both params
+      const collectionMap: Record<string, LocalCollection | null> = {
+        classic: getCollectionByHandle('classic-tees'),
+        core: getCollectionByHandle('core-tees'),
+        signature: getCollectionByHandle('signature-tees'),
+      };
+      
+      collectionData = collectionMap[subcategory] || null;
+      if (collectionData) {
+        const filterConfig = collectionToProductFilter[subcategory];
+        filteredProducts = getProducts().filter((p) => {
+          if (p.collection !== filterConfig.collection) return false;
+          if (filterConfig.product_sub_type) {
+            return p.product_sub_type === filterConfig.product_sub_type;
+          }
+          return true;
+        });
+      }
+    } else {
+      // Handle regular collections and old-style T-shirt routes
+      collectionData = getCollectionByHandle(handle);
+      if (collectionData) {
+        const filterConfig = collectionToProductFilter[collectionData.handle];
+        if (filterConfig) {
+          // Filter products by their collection field and product_sub_type for T-shirt subcategories
+          filteredProducts = getProducts().filter((p) => {
+            if (p.collection !== filterConfig.collection) return false;
+            if (filterConfig.product_sub_type) {
+              return p.product_sub_type === filterConfig.product_sub_type;
+            }
+            return true;
+          });
+        } else {
+          // Use regular collection-based filtering for other collections
+          filteredProducts = getCollectionProducts(collectionData.handle);
+        }
+      }
+    }
+
+    setCollection(collectionData);
+    setProducts(filteredProducts);
     setLoading(false);
-  }, [handle]);
+  }, [handle, subcategory]);
 
   return (
     <div className="min-h-screen bg-white">

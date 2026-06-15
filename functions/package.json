@@ -1,0 +1,25 @@
+{
+  "name": "giovanni-cloud-functions",
+  "version": "1.0.0",
+  "description": "Firebase Cloud Functions for Giovanni e-commerce platform",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "firebase deploy --only functions",
+    "deploy:sendOrderConfirmation": "firebase deploy --only functions:sendOrderConfirmationEmail,functions:sendOrderConfirmationRetry",
+    "serve": "firebase emulators:start --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.10.1",
+    "firebase-functions": "^4.4.1",
+    "nodemailer": "^6.9.6"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "author": "Giovanni",
+  "license": "ISC"
+}

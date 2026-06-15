@@ -75,6 +75,18 @@ export const imageCatalog = {
     findByName('classic giovanni t-shirts in white') ||
     findByName('classic giovanni t-shirts in sage') ||
     findByName('classic giovanni'),
+  coreTShirt:
+    findByName('giovanni core tee - sage') ||
+    findByName('core tee') ||
+    findByName('core t-shirt'),
+  signatureTShirt:
+    findByName('giovanni signature tee - black') ||
+    findByName('giovanni signature tee - off-white') ||
+    findByName('giovanni signature tee - sage') ||
+    findByName('signature tee'),
+  signatureShorts:
+    findByName('giovanni signature short') ||
+    findByName('signature shorts'),
   premiumLinenShirt: findByName('premium linen shirt with sleek zipper.png') || findByName('premium linen shirt with sleek zipper'),
   womenLinenSet:
     findByName('linen set in off-white(women)') ||
@@ -105,6 +117,10 @@ export const imageCatalog = {
     findByName('giovanni clothing collection showcase') ||
     findByName('collection showcase'),
   hero: findByName('minimalist _giovanni_ t-shirt display.png'),
+  formalShirtHero:
+    findByName('Giovanni formal shirt olive.png') ||
+    findByName('Giovanni formal shirt olive') ||
+    findByName('formal shirt olive'),
   lifestyle: findByName('chatgpt image mar 28, 2026, 10_22_27 am.png'),
   // Explicit formal shirt entries (newly added files)
   formalBlack: findByName('black giovanni formal shirt.png'),
@@ -116,6 +132,9 @@ export const imageCatalog = {
     findByName('blue giovanni formal shirt.png') ||
     findByName('navy giovanni formal shirt.png') ||
     findByName('white giovanni formal shirt.png'),
+  aboutGiovanni:
+    findByName('about givanni.png') ||
+    findByName('about giovanni.png'),
 };
 
 export const resolveImageSrc = (value?: string) => {

@@ -23,7 +23,11 @@ export default function Header() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setCollections(getVisibleCollections().map(({ id, title, handle }) => ({ id, title, handle })));
+    // Filter to show only main categories (exclude subcategories and new-arrivals)
+    const mainCategories = getVisibleCollections()
+      .filter(c => !['new-arrivals', 'classic-tees', 'core-tees', 'signature-tees', 'giovanni-signature'].includes(c.handle))
+      .map(({ id, title, handle }) => ({ id, title, handle }));
+    setCollections(mainCategories);
   }, []);
 
   useEffect(() => {
@@ -80,10 +84,10 @@ export default function Header() {
                 >
                   Shop All
                 </Link>
-                {collections.filter(c => c.handle !== 'new-arrivals').map(col => (
+                {collections.map(col => (
                   <Link
                     key={col.id}
-                    to={`/collections/${col.handle}`}
+                    to={col.handle === 't-shirts' ? '/collections/t-shirts' : `/collections/${col.handle}`}
                     className="text-[9px] tracking-[0.2em] uppercase text-[#1A1A1A] hover:text-[#8B8B8B] transition-colors duration-300 font-light"
                   >
                     {col.title}
@@ -231,7 +235,7 @@ export default function Header() {
               {collections.map(col => (
                 <Link
                   key={col.id}
-                  to={`/collections/${col.handle}`}
+                  to={col.handle === 't-shirts' ? '/collections/t-shirts' : `/collections/${col.handle}`}
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-[12px] tracking-[0.2em] uppercase text-[#1A1A1A] font-medium"
                 >

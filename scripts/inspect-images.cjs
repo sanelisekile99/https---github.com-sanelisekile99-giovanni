@@ -7,7 +7,6 @@ const normalize = (f) => f.toLowerCase().replace(/backet/g, 'bucket');
 
 function inferProductType(fileNameLower) {
   const lower = fileNameLower;
-  if (lower.includes('premium linen shirt with sleek zipper')) return 'Limited Edition';
   if (lower.includes('minimalist _giovanni_ t-shirt display')) return '';
   if (lower.includes('classic giovanni')) return 'T-Shirts';
   if ((lower.includes('linen') && lower.includes('(men)')) || (lower.includes('shirt and pants set') && !lower.includes('women'))) {
@@ -18,7 +17,6 @@ function inferProductType(fileNameLower) {
   if (lower.includes('cardigan')) return 'Cardigans';
   if (lower.includes('sweater')) return 'Sweaters';
   if (lower.includes('two-piece') || lower.includes('set')) return 'Two-Piece Sets';
-  if (lower.includes('limited')) return 'Limited Edition';
   if (lower.includes('t-shirt') || lower.includes('tee')) return 'T-Shirts';
   return '';
 }

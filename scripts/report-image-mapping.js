@@ -5,7 +5,6 @@ const files = fs.readdirSync(imgDir);
 const normalize = (file) => file.replace(/\.(png|jpe?g|webp|avif)$/i, '').toLowerCase().replace(/[\[\]()]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const infer = (file) => {
   const lower = file.toLowerCase();
-  if (lower.includes('premium linen shirt with sleek zipper')) return 'Limited Edition';
   if (lower.includes('minimalist _giovanni_ t-shirt display')) return '';
   if (lower.includes('classic giovanni')) return 'T-Shirts';
   if ((lower.includes('linen') && lower.includes('(men)')) || (lower.includes('shirt and pants set') && !lower.includes('women'))) {
@@ -16,7 +15,6 @@ const infer = (file) => {
   if (lower.includes('cardigan')) return 'Cardigans';
   if (lower.includes('sweater')) return 'Sweaters';
   if (lower.includes('two-piece') || lower.includes('set')) return 'Two-Piece Sets';
-  if (lower.includes('limited')) return 'Limited Edition';
   if (lower.includes('t-shirt') || lower.includes('tee')) return 'T-Shirts';
   return '';
 };
